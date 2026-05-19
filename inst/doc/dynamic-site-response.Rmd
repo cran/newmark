@@ -1,0 +1,242 @@
+---
+title: "Dynamic site response: fundamental period and stiffness profile"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Dynamic site response: fundamental period and stiffness profile}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+## Why this matters
+
+The flexible-block Newmark displacement models (BT07, BM17, BM19)
+evaluate spectral acceleration at a period proportional to the
+fundamental period of the sliding mass *T*_s. Estimating *T*_s
+therefore precedes any flexible-block analysis. The base
+stiffness parameters required for the estimation — the maximum
+shear modulus *G*_o and the shear-wave velocity *v*^o_S at the
+embankment base — are established here from the soil profile via
+Ishihara's (1996) shear-modulus model and the Gazetas–Dakoulas
+(1985) inhomogeneous truncated shear-beam formulation.
+
+This methodology was originally distributed as the `dsra` package
+and was merged into `newmark` 1.1.0 (see `NEWS.md`). The functions
+`getSiteProperties()`, `geSiteTable()`, `getCylinderRoots()`,
+`fitModel.Ts()`, `Vs30toSID()` and `SIDtoVs30()`, together with
+the reference datasets `CylinderRoots`, `ShearModelParameters`,
+`SiteClass` and `SiteTable`, all originate from `dsra`.
+
+---
+
+## Fundamental period of an inhomogeneous truncated shear beam
+
+For an embankment whose shear stiffness increases with depth
+according to a power-law profile
+
+$$
+G(z) \;\approx\; G_o \left(\frac{z}{H_\text{max}}\right)^{m_o},
+$$
+
+the *j*-th modal period is
+
+$$
+T_s^{(j)} \;\simeq\; \frac{4\,\pi\,H_\text{max}}{a^{(j)}\,(2 - m_o)\,v_S^{o}},
+$$
+
+where
+
+- *H*_max is the maximum height of the embankment;
+- *a*^(*j*) is the *j*-th eigenvalue of the characteristic equation
+  for the laterally constrained embankment under harmonic base
+  excitation, depending jointly on *m*_o and the truncation ratio
+  *λ*_o;
+- *v*^o_S = √(*G*_o / ρ) is the shear-wave velocity at the base,
+  with *G*_o the maximum shear modulus at depth *z* = *H*_max and
+  ρ the bulk mass density.
+
+For practical evaluation, the fundamental mode (*j* = 1) dominates
+and the expression reduces to a function of the base shear-wave
+velocity, the maximum height, and the two dimensionless geometric
+ratios *m*_o and *λ*_o.
+
+The truncation ratio *λ*_o captures the geometric influence of the
+berm width *B*_o on the dynamic response:
+
+$$
+\lambda_o \;=\; \frac{B_o}{B_\text{max}} \;=\; \frac{B_o}{2\,H_\text{max}\,s + B_o},
+$$
+
+where *s* is the reciprocal of the average slope gradient
+(tan β = 1 / *s*). A larger *λ*_o lengthens the fundamental
+period.
+
+The homogeneity ratio *m*_o reflects the power-law variation of
+the shear modulus with depth. A larger *m*_o implies a steeper
+stiffness gradient from surface to base and lengthens the
+fundamental period relative to the uniform-stiffness case
+(*m*_o = 0).
+
+The eigenvalue *a*^(1) is computed from a precomputed
+table of characteristic roots derived from the Gazetas–Dakoulas
+(1985) characteristic equation:
+
+```r
+library(newmark)
+
+an <- getCylinderRoots(
+  mo          = 0.45,                 # homogeneity ratio
+  lo          = 0.20,                 # truncation ratio
+  no          = 1,                    # mode number
+  model       = "nlm",                # interpolation: "lm", "nlm", "dt", "rf"
+  extrapolate = TRUE                  # warn (do not clamp) outside the table
+)
+```
+
+The reference table is the `CylinderRoots` dataset; its support
+in (*m*_o, *λ*_o) is *m*_o ∈ [0, 0.95] and *λ*_o ∈ [0, 0.495]
+across modes 1..8.
+
+When the analyst already has a discrete *V*_S(*z*) profile (for
+instance from CPT-derived correlations or downhole logging),
+`fitModel.Ts()` computes *T*_s directly via Rayleigh's method
+without going through the modal eigenvalue:
+
+```r
+Ts <- fitModel.Ts(
+  VSm = c(220, 280, 340),               # shear-wave velocities by layer (m/s)
+  hs  = c(10, 10, 10),                  # layer thicknesses (m)
+  zm  = c(5, 15, 25)                    # layer mid-depths (m)
+)
+```
+
+---
+
+## Ishihara stiffness model
+
+The maximum (small-strain) shear modulus at depth *z* is estimated
+as a function of void ratio *e*_o and octahedral effective stress
+σ′_o(*z*) using Ishihara's (1996) form:
+
+$$
+G(z,\,e_o) \;\approx\; A\,\frac{(C_e - 1)^{2}}{1 + e_o}\,\left(\frac{\sigma'_o(z)}{p_\text{ref}}\right)^{n},
+$$
+
+where
+
+- *A* is a dimensionless material-dependent amplitude constant;
+- *C*_e is a void-ratio shape parameter controlling the
+  sensitivity of *G* to void ratio;
+- *p*_ref is a reference pressure (typically atmospheric,
+  101.3 kPa);
+- *n* is the stress exponent governing the power-law dependence
+  of stiffness on confining pressure.
+
+Material parameters (*A*, *C*_e, *n*) are tabulated in the
+package as `ShearModelParameters`, indexed by USCS soil class.
+Void-ratio ranges by USCS class are also packaged (used
+internally by the synthetic-profile generator):
+
+```r
+data(ShearModelParameters)            # 20 rows, parameters by ModelID
+data(SiteTable)                       # ~256k rows, sampled site profiles
+data(CylinderRoots)                   # ~307k rows, eigenvalues a(mo, lo, n)
+data(SiteClass)                       # 9 rows, ASCE 7-22 site-class table
+```
+
+The maximum shear modulus *G*_o corresponds to *z* = *H*_max,
+where the octahedral stress reaches its largest value under the
+self-weight of the fill. The base shear-wave velocity follows
+directly:
+
+$$
+v_S^{o} \;=\; \sqrt{\frac{G_o}{\rho}}.
+$$
+
+---
+
+## Synthetic profile generation
+
+For preliminary studies where laboratory data are limited, the
+package generates Monte Carlo realisations of synthetic soil
+profiles consistent with a USCS classification. Each realisation
+samples void ratio, unit weight and plasticity from
+USCS-conditioned distributions, computes the stiffness profile
+*G*(*z*) via the Ishihara expression, fits the power-law form to
+extract (*G*_o, *m*_o, *v*^o_S), and computes *T*_s via the modal
+expression above.
+
+```r
+SiteProps <- getSiteProperties(
+  Hs     = 30,                         # total height to hard ground (m)
+  USCS   = c("GC", "CL", "ML"),        # USCS codes (top to bottom)
+  POP    = 100,                        # pre-consolidation pressure (kPa)
+  Water  = 0,                          # water-table depth as fraction of Hs
+  NR     = 100,                        # Monte Carlo realisations
+  h      = 1.00,                       # layer thickness (m)
+  levels = c(0.05, 0.5, "mean", 0.95),
+  Vref   = 760
+)
+# returns a data.table with one row per (Hs, POP, Hw, level) combination
+# columns: USCS, Go, mo, Ts, VSo, VS30, Z500, Z1000, level
+```
+
+`geSiteTable()` is the lower-level entry point that produces a
+single realisation; `getSiteProperties()` wraps it in a Monte
+Carlo loop and returns quantile summaries.
+
+---
+
+## Site-class utilities
+
+The eight-class site identifier of ASCE 7-22 / NBCC is mapped
+bidirectionally with the equivalent *V*_S30:
+
+```r
+Vs30toSID(c(120, 360, 760, 1500))
+#> [1] "E"  "CD" "BC" "A"
+
+SIDtoVs30(c("BC", "C", "CD", "D"))
+#> [1] 760 540 370 255
+```
+
+The canonical class boundaries are:
+
+| Class | Vs30 range (m/s)    | Representative Vs30 |
+|-------|---------------------|--------------------:|
+| A     | ≥ 1500              | 1500                |
+| B     | 900 – 1500          | 1200                |
+| BC    | 640 – 900           | 760                 |
+| C     | 440 – 640           | 540                 |
+| CD    | 300 – 440           | 370                 |
+| D     | 210 – 300           | 255                 |
+| DE    | 150 – 210           | 180                 |
+| E     | < 150               | 150                 |
+
+---
+
+## Application
+
+Most TSF and waste-rock dump assessments call
+`getSiteProperties()` once per (geometry, material) pair to
+obtain *T*_s and *m*_o, then pass *T*_s to the Newmark
+displacement workflow (`fitDnCurve`). The function returns a
+distribution because each input parameter (void ratio, unit
+weight, *G* profile coefficients) is sampled from
+USCS-conditioned ranges; the analyst chooses a quantile of *T*_s
+for the design.
+
+For site amplification of the rock UHS to the target *V*_S30,
+see `?fitSaF` and the methodology in
+`vignette("ensemble-formulation", package = "newmark")`.
+
+---
+
+## References
+
+- Gazetas, G. & Dakoulas, P. (1985). *Soil Dyn. Earthq. Eng.* 4(4):166–182.
+- Ishihara, K. (1996). *Soil Behaviour in Earthquake Geotechnics*. Oxford University Press.
+- ASCE/SEI 7-22 (2022). *Minimum Design Loads and Associated Criteria for Buildings and Other Structures*. American Society of Civil Engineers.

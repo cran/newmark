@@ -1,0 +1,103 @@
+---
+title: "Getting started with newmark"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with newmark}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Overview
+
+`newmark` implements a four-workflow pipeline for probabilistic seismic
+performance analysis of slopes and embankments:
+
+1. **Dynamic Site Response** — compute the fundamental period Ts and
+   site-amplified UHS from the soil profile (`getSiteProperties`,
+   `getCylinderRoots`, `fitSaF`).
+2. **Hazard import** — import PSHA output from OpenQuake (`buildGMDP`).
+3. **Displacement curves** — Monte Carlo Newmark ensemble Dn(ky)
+   (`getDnKy`, `fitDnCurve`).
+4. **Seismic coefficient** — invert ensemble draws to kmax(d*)
+   (`invertDnDraws`).
+
+This vignette demonstrates Workflows 3 and 4 using the bundled example
+dataset. For the full pipeline see the
+`pipeline` vignette (`vignette("pipeline", package = "newmark")`).
+
+## Example dataset
+
+`uhs.csv` is a site-amplified uniform-hazard spectrum included with the
+package: NBCC hazard model, Vs30 = 560 m/s, TR = 10 000 yr, with quantile
+levels 0.05–0.95 and mean (Mode B input).
+
+```{r load}
+library(newmark)
+library(data.table)
+
+uhs <- fread(system.file("extdata", "uhs.csv", package = "newmark"))
+uhs[p %in% c("0.16", "mean", "0.84") & Tn <= 0.2, .(Tn, p, Sa)]
+```
+
+## Parameters
+
+```{r params}
+# Ts: fundamental period of the sliding mass (s).
+# In production, derived from getSiteProperties() + getCylinderRoots()
+# using the soil USCS profile and slope geometry (Ishihara 1996,
+# Gazetas & Dakoulas 1985). Here set to a representative value.
+Ts <- 0.60
+
+# Mw: moment magnitude from PSHA disaggregation.
+Mw <- 6.8
+
+# Ensemble weights (0 = model inactive).
+weights <- c(AM88 = 1, JB07 = 0, BT07 = 1, SR08 = 1, BM17 = 0, BM19 = 1)
+
+# Displacement targets (cm).
+Da <- c(0.5, 2.5, 5.0, 25.0)
+```
+
+## Workflow 3 — Displacement curve Dn(ky)
+
+```{r fitDnCurve}
+ky     <- getDnKy(uhs, Ts = Ts)
+result <- fitDnCurve(
+  uhs     = uhs,
+  ky      = ky,
+  Ts      = Ts,
+  Mw      = Mw,
+  NS      = 200,
+  weights = weights
+)
+
+result$curve[IDn == "ensemble" & p == "mean", .(ky, Dn)]
+```
+
+## Workflow 4 — Seismic coefficient kmax(d*)
+
+```{r invertDnDraws}
+kmax <- invertDnDraws(result$draws, Da = Da, weights = weights)
+kmax[p %in% c("0.16", "mean", "0.84")]
+```
+
+`kmax` is in g. The normalised pseudostatic coefficient is
+Kh = kmax / PGA_rock x 100 %.
+
+## Next steps
+
+- `vignette("dynamic-site-response", package = "newmark")` — soil
+  profile to fundamental period and site amplification
+  (`getSiteProperties`, `geSiteTable`, `getCylinderRoots`,
+  `fitModel.Ts`, `fitSaF`).
+- `vignette("ensemble-formulation", package = "newmark")` —
+  mathematical derivation of the probabilistic propagation.
+- `vignette("pipeline", package = "newmark")` — the four-workflow
+  overview at function level.
+- Function reference: `?fitSaF`, `?getDnKy`, `?fitDnCurve`,
+  `?invertDnDraws`, `?getSiteProperties`, `?getCylinderRoots`,
+  `?buildGMDP`.

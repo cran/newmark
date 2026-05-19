@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Newmark ensemble formulation</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Newmark ensemble formulation</h1>
+
+
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p><code>newmark</code> answers one question: given a site-specific
+seismic hazard and a slope with known dynamic properties, what
+horizontal seismic coefficient <em>k</em>_max is required to limit
+permanent co-seismic displacement to a specified target <em>d</em>*?</p>
+<p>The performance-based design problem is formulated as: for a given
+target tolerable displacement <em>d</em>* &gt; 0, target return period
+<em>T</em>_R, and target exceedance probability <em>p</em> ∈ (0, 1),
+choose the smallest yield coefficient <em>k</em>_y such that the
+displacement induced at <em>T</em>_R remains below <em>d</em>* with
+probability at least 1 − <em>p</em>:</p>
+<p><span class="math display">\[
+k_\text{max}(p \mid d^*, T_R) \;=\; \inf\!\Bigl\{\,k_y \,:\,
+P\!\bigl[\,D_N(k_y; T_R) &gt; d^*\,\bigr] \,\leq\, p\,\Bigr\}.
+\]</span></p>
+<p>The right-hand side has no closed form — neither the joint
+distribution of intensity measures nor the convolution with the
+empirical regression residual admits one. The framework evaluates the
+inverse mapping numerically via Monte Carlo, propagating two sources of
+uncertainty:</p>
+<ol style="list-style-type: decimal">
+<li><strong>Hazard uncertainty</strong> — spectral accelerations are
+drawn from the quantile curves of the uniform-hazard spectrum via a
+Gaussian copula that preserves the <strong>full</strong> inter-period
+correlation matrix (Baker &amp; Jayaram 2008); no star/hub
+simplification.</li>
+<li><strong>Model uncertainty</strong> — six empirical Newmark models
+are combined in a logic-tree ensemble with user-assigned epistemic
+weights <em>w</em>_i, ∑<em>w</em>_i = 1.</li>
+</ol>
+<p>For the full mathematical derivation and calibration discussion,
+see:</p>
+<blockquote>
+<p>Verri Kozlowski, A. (2026). <em>Probabilistic estimation of Newmark
+displacements and seismic coefficients under hazard uncertainty.</em>
+Working paper.</p>
+</blockquote>
+<hr />
+</div>
+<div id="three-stage-structure" class="section level2">
+<h2>Three-stage structure</h2>
+<div id="stage-1-site-amplification-fitsaf" class="section level3">
+<h3>Stage 1 — Site amplification (<code>fitSaF</code>)</h3>
+<p>Rock-level spectral ordinates are amplified to the target site Vs30
+using the Seyhan &amp; Stewart (2014) nonlinear site-factor model
+(ST17).</p>
+<ul>
+<li><strong>Mode A</strong> (mean-only input): rock Sa is deterministic;
+dispersion comes from ST17 sigma alone.</li>
+<li><strong>Mode B</strong> (quantile input): Sa is sampled jointly
+across periods via Gaussian copula; dispersion reflects combined hazard
+and site-factor uncertainty.</li>
+</ul>
+<p>See <code>?fitSaF</code> for the function-level interface.</p>
+</div>
+<div id="stage-2-displacement-curve-fitdncurve" class="section level3">
+<h3>Stage 2 — Displacement curve (<code>fitDnCurve</code>)</h3>
+<p>For each Monte Carlo realisation, one ground-motion scenario is drawn
+(a consistent tuple of PGA, Sa(1.3Ts), Sa(1.5Ts)) and passed through all
+active displacement models simultaneously using a shared aleatory
+residual. The result is a family of coherent displacement curves
+<em>D</em>_N(<em>k</em>_y).</p>
+</div>
+<div id="stage-3-coefficient-inversion-invertdndraws" class="section level3">
+<h3>Stage 3 — Coefficient inversion (<code>invertDnDraws</code>)</h3>
+<p>Each curve is projected monotone and inverted in log-log space to
+find the yield acceleration <em>k</em>_max such that
+<em>D</em>_N(<em>k</em>_max) = <em>d</em>*. Mean and quantiles of
+<em>k</em>_max over all realisations constitute the output.</p>
+<hr />
+</div>
+</div>
+<div id="displacement-models" class="section level2">
+<h2>Displacement models</h2>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>ID</th>
+<th>Authors</th>
+<th>Type</th>
+<th>Spectral reference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>AM88</td>
+<td>Ambraseys &amp; Menu (1988)</td>
+<td>rigid block</td>
+<td>PGA</td>
+</tr>
+<tr class="even">
+<td>JB07</td>
+<td>Jibson (2007)</td>
+<td>rigid block</td>
+<td>PGA, Arias intensity</td>
+</tr>
+<tr class="odd">
+<td>SR08</td>
+<td>Saygili &amp; Rathje (2008)</td>
+<td>rigid block</td>
+<td>PGA, Arias intensity</td>
+</tr>
+<tr class="even">
+<td>BT07</td>
+<td>Bray &amp; Travasarou (2007)</td>
+<td>flexible block</td>
+<td>Sa(1.5 Ts)</td>
+</tr>
+<tr class="odd">
+<td>BM17</td>
+<td>Bray, Macedo &amp; Travasarou (2018)</td>
+<td>flexible block, subduction</td>
+<td>Sa(1.5 Ts)</td>
+</tr>
+<tr class="even">
+<td>BM19</td>
+<td>Bray &amp; Macedo (2019, corr. 2023)</td>
+<td>flexible block, crustal</td>
+<td>Sa(1.3 Ts)</td>
+</tr>
+</tbody>
+</table>
+<p>Activate/deactivate models via the <code>weights</code> argument (0 =
+inactive).</p>
+<p>For BM19, near-fault pulse motions are flagged when PGV &gt; 115 cm
+s⁻¹ and the equation switches to the Bray-Macedo (2023) D100 / D50 form
+controlled by the <code>NFC</code> argument (<code>&quot;D100&quot;</code> is the
+maximum-component default, conservative for slopes within ±45° of
+fault-normal; <code>&quot;D50&quot;</code> is the median-component case for other
+orientations). A sub-regime split at PGV = 150 cm s⁻¹ inside the pulse
+equation captures the saturation of seismic displacement at very high
+PGV.</p>
+<hr />
+</div>
+<div id="key-assumptions" class="section level2">
+<h2>Key assumptions</h2>
+<ul>
+<li>Shared aleatory residual across models per realisation: a single
+<em>z</em>^(<em>n</em>) ∼ 𝒩(0,1) is drawn and applied to all six models
+scaled by each model’s own σ_lnD. This corresponds to ρ = 1 cross-model
+residual correlation. Independent residuals per model (ρ = 0)
+underestimates the joint ensemble variability; intermediate cross-model
+correlations are an open refinement direction.</li>
+<li>Independent site-factor and Sa uncertainty within each
+realisation.</li>
+<li>Log-log linear inversion with boundary extrapolation. Per-model
+calibration ranges (<code>getKyLimits()</code>) are reported as a
+diagnostic but not enforced as a clamp inside
+<code>invertDnDraws()</code>.</li>
+</ul>
+</div>
+<div id="operational-defaults" class="section level2">
+<h2>Operational defaults</h2>
+<ul>
+<li>Monte Carlo sample size <em>N</em>_S: routine practice is
+<em>N</em>_S ∈ <span class="math display">\[10³, 10⁴\]</span>.
+Convergence diagnostics (band-width stability under <em>N</em>_S × 2)
+accompany each application.</li>
+<li><em>k</em>_y grid points: <em>N</em>_k = 30, log-spaced over <span class="math display">\[0.01, max(PGA, 0.80)\]</span> g (default of
+<code>getDnKy()</code>).</li>
+<li>Reported quantiles: mean plus <em>p</em> ∈ {0.16, 0.50, 0.84}.
+Extreme-tail reporting (<em>p</em> ∈ {0.05, 0.95}) is requested
+explicitly via the <code>p</code> argument to
+<code>invertDnDraws()</code>.</li>
+</ul>
+<hr />
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<ul>
+<li>Baker &amp; Jayaram (2008). <em>Earthquake Spectra</em>
+24(1):299–317.</li>
+<li>Bray &amp; Travasarou (2007). <em>J. Geotech. Geoenviron. Eng.</em>
+133(4):381–392.</li>
+<li>Bray, Macedo &amp; Travasarou (2018). <em>J. Geotech. Geoenviron.
+Eng.</em> 144(3):04017124.</li>
+<li>Bray &amp; Macedo (2019, corr. 2023). <em>J. Geotech. Geoenviron.
+Eng.</em> 145(12); <em>Soil Dyn. Earthq. Eng.</em> 168:107835.</li>
+<li>Jibson (2007). <em>Engineering Geology</em> 91(2–4):209–218.</li>
+<li>Saygili &amp; Rathje (2008). <em>J. Geotech. Geoenviron. Eng.</em>
+134(6):790–803.</li>
+<li>Seyhan &amp; Stewart (2014). <em>Earthquake Spectra</em>
+30(3):1241–1256.</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
