@@ -55,7 +55,7 @@ Rendered documentation: <https://averriK.github.io/newmark/>.
 
 ## Getting help
 
-Open an issue at <https://github.com/averriK/newmark/issues>.
+Open an issue at <https://averriK.github.io/newmark/>.
 
 ## Citation
 
@@ -79,7 +79,7 @@ To cite the software package itself:
   author = {Verri Kozlowski, Alejandro},
   year   = {2026},
   note   = {R package version 1.1.0},
-  url    = {https://github.com/averriK/newmark}
+  url    = {https://averriK.github.io/newmark/}
 }
 ```
 

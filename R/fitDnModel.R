@@ -1,5 +1,5 @@
 ###############################################################################
-# fitDnModel.R — Single-submodel Newmark displacement + internal helpers
+# fitDnModel.R - Single-submodel Newmark displacement + internal helpers
 ###############################################################################
 
 #' Newmark displacement for a single submodel and scenario
@@ -9,11 +9,13 @@
 #' @param Ts    numeric scalar, fundamental period (s)
 #' @param Mw    numeric scalar, moment magnitude
 #' @param NS    integer, Monte Carlo samples
-#' @param Rrup  numeric scalar, rupture distance (km)
 #' @param IDn   character, submodel identifier
 #' @param NFC   character, near-fault component selector for model BM19:
 #'   \code{"D100"} (maximum component, default) or \code{"D50"}.
 #'   Ignored by all other submodels.
+#' @param pulse logical, near-fault forward-directivity pulse motion
+#'   declared by the analyst (BM19 only; see \code{?Dn_BM19}). Default
+#'   \code{FALSE}.
 #'
 #' @return data.table with columns p, Dn, IDn. Dn in cm.
 #' @examples
@@ -23,11 +25,11 @@
 #' fitDnModel(uhs, ky = 0.1, Ts = 0.3, Mw = 7.5, NS = 100, IDn = "AM88")
 #' }
 #' @export
-fitDnModel <- function(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100,
-                       IDn, NFC = "D100") {
+fitDnModel <- function(uhs, ky, Ts, Mw = 6.5, NS = 30L,
+                       IDn, NFC = "D100", pulse = FALSE) {
 
-  .sample <- .sampleDnScenario(uhs, Ts, NS, Rrup)
-  Dn      <- .drawDnModel(.sample, ky, Ts, Mw, IDn, NFC = NFC)
+  .sample <- .sampleDnScenario(uhs, Ts, NS)
+  Dn      <- .drawDnModel(.sample, ky, Ts, Mw, IDn, NFC = NFC, pulse = pulse)
   if (is.null(Dn)) {
     return(data.table::data.table(p = character(), Dn = numeric(), IDn = character()))
   }
@@ -39,7 +41,7 @@ fitDnModel <- function(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100,
 
 # --- Internal helpers (not exported, shared with fitDnCurve) ----------------
 
-.sampleDnScenario <- function(uhs, Ts, NS, Rrup) {
+.sampleDnScenario <- function(uhs, Ts, NS) {
   uhs <- data.table::as.data.table(uhs)[, .(Tn, p, Sa)]
   uhs[, p := as.character(p)]
 
@@ -77,7 +79,8 @@ fitDnModel <- function(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100,
 }
 
 
-.drawDnModel <- function(.sample, ky, Ts, Mw, IDn, eps = NULL, NFC = "D100") {
+.drawDnModel <- function(.sample, ky, Ts, Mw, IDn, eps = NULL, NFC = "D100",
+                         pulse = FALSE) {
   spec <- tryCatch({
     switch(IDn,
            AM88 = Dn_AM88(.sample$PGA, ky),
@@ -87,7 +90,7 @@ fitDnModel <- function(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100,
            BM17 = Dn_BM17(ky = ky, Sa = .sample$Sa15, Ts = Ts, Mw = Mw),
            BM19 = Dn_BM19(ky = ky, Ts = Ts, Sa = .sample$Sa13,
                           PGA = .sample$PGA, PGV = .sample$PGV, Mw = Mw,
-                          NFC = NFC),
+                          NFC = NFC, pulse = pulse),
            stop("Unsupported IDn: ", IDn))
   }, error = function(e) NULL)
 
@@ -97,14 +100,15 @@ fitDnModel <- function(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100,
 }
 
 
-# Draw coherent Dn(ky) curve for one model — same epsilon across all ky.
+# Draw coherent Dn(ky) curve for one model - same epsilon across all ky.
 # If eps is supplied (shared across models), all models use the same
 # standard-normal vector; each still scales by its own sigma_lnD.
 .drawDnModelCurve <- function(.sample, ky, Mw, Ts, IDn, NS, eps = NULL,
-                              NFC = "D100") {
+                              NFC = "D100", pulse = FALSE) {
   if (is.null(eps)) eps <- stats::rnorm(NS)
   LIST <- lapply(seq_along(ky), function(j) {
-    Dn <- .drawDnModel(.sample, ky[j], Ts, Mw, IDn, eps = eps, NFC = NFC)
+    Dn <- .drawDnModel(.sample, ky[j], Ts, Mw, IDn, eps = eps, NFC = NFC,
+                       pulse = pulse)
     if (is.null(Dn)) return(NULL)
     data.table::data.table(ky = ky[j], s = seq_len(NS), Dn = Dn, IDn = IDn)
   })

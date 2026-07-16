@@ -260,9 +260,13 @@ geSiteTable <- function(Hs, Water = 0, USCS, Group = NULL, h = 0.50, DrID = NULL
         A <- ShearModelParameters[ModelID %in% MID, A] # kPa
         Ce <- ShearModelParameters[ModelID %in% MID, Ce]
         N <- ShearModelParameters[ModelID %in% MID, n]
-        Fe <- sapply(Ce, function(x) {
-            (x - eo[k])^2 / (1 + eo[k])
-        })
+        ## Ishihara (1996) Table 6.1: SS75 (Shibata-Soelarno) uses the
+        ## LINEAR form F(e) = Ce - e/(1+e); every other tabulated model
+        ## uses the quadratic (Ce - e)^2/(1+e).
+        Fe <- mapply(function(x, id) {
+            if (id == "SS75") x - eo[k] / (1 + eo[k])
+            else (x - eo[k])^2 / (1 + eo[k])
+        }, Ce, MID)
 
 
         m1 <- ifelse(
@@ -391,7 +395,7 @@ geSiteTable <- function(Hs, Water = 0, USCS, Group = NULL, h = 0.50, DrID = NULL
     ZTop <- c(0, head(cumsum(hs), -1)) # depth to top of each layer
     ZBot <- ZTop + hs # depth to bottom of each layer
 
-    h30 <- pmax(pmin(ZBot, 30) - ZTop, 0) # thickness that lies in 0–30 m
+    h30 <- pmax(pmin(ZBot, 30) - ZTop, 0) # thickness that lies in 0-30 m
     t30 <- h30 / VSm # travel time of logged layers
 
     if (sum(hs) < 30) { # pad with foundation if needed

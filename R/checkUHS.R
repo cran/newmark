@@ -3,7 +3,7 @@
 #' Ensures that, for every combination
 #' \code{TR, Vs30, Vref, ID, Tn}, there is exactly
 #' one row per probability \code{p} and that
-#' \code{Sa(p)} is non‑decreasing.
+#' \code{Sa(p)} is non-decreasing.
 #'
 #' @param UHSTable data.table with columns
 #'   \code{TR, Vs30, Vref, ID, Tn, p, Sa}.

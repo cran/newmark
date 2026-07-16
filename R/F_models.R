@@ -2,13 +2,14 @@
 
 
 # ============================================================
-# Site–factor model SaF_ST17  (canonical)
+# Site-factor model SaF_ST17  (canonical)
 # ============================================================
-#' Site-amplified spectral acceleration using Seyhan & Stewart (2014)
+#' Site-amplified spectral acceleration (2017 NGA-East generation)
 #'
-#' Computes site-amplified spectral acceleration Sa_F using the Seyhan & Stewart (2014)
-#' non-linear site factor model. This is the canonical implementation that calls
-#' the underlying F_ST17() function.
+#' Computes site-amplified spectral acceleration Sa_F using the
+#' 2017-generation NGA-East non-linear site factor model (PEER Report
+#' 2017/05 lineage; see \code{\link{F_ST17}}). This wrapper calls the
+#' underlying F_ST17() function.
 #'
 #' @param Sa numeric vector - rock spectral accelerations at period Tn (g)
 #' @param pga numeric vector - peak ground acceleration on rock (g), same length as Sa
@@ -23,9 +24,9 @@
 #'     \item{\code{ID}}{character string "ST17"}}
 #'
 #' @section References:
-#' Seyhan, E. & Stewart, J.P. (2014) "Semi-empirical nonlinear site amplification
-#' from NGA-West2 data and simulations." *Earthquake Spectra* **30**(3):1241--1256.
-#' \doi{10.1193/063013EQS181M}
+#' Hashash, Y.M.A. et al. (2017) "Recommendation for Ergodic Nonlinear
+#' Site Amplification in Central and Eastern North America." PEER
+#' Report 2017/05, Pacific Earthquake Engineering Research Center.
 #'
 #' @seealso \code{\link{F_ST17}} for the underlying site factor model
 #' @seealso \code{\link{fitSaF}} for Monte-Carlo site amplification analysis
@@ -60,7 +61,7 @@ SaF_ST17 <- function(Sa, pga, Tn, vs30, vref = 760) {
         ))
     }
 
-    ## call the F-model — note the argument name **PGA**
+    ## call the F-model - note the argument name **PGA**
     Fmodel <- F_ST17(PGA = pga, Tn = Tn, vs30 = vs30, vref = vref)
 
     data.table(
@@ -73,25 +74,33 @@ SaF_ST17 <- function(Sa, pga, Tn, vs30, vref = 760) {
 
 
 # ============================================================
-#  Seyhan & Stewart (2014) site-factor model  —  F_ST17()
+#  NGA-East 2017-generation site-factor model (PEER 2017/05)  -  F_ST17()
 # ============================================================
 # nolint start
 #' Non-linear site amplification factor **F<sub>ST17</sub>**
 #'
-#' Implements the period-dependent, Vs30-dependent model of Seyhan & Stewart (2014)
-#' for the natural-log mean and standard deviation of the amplification factor
-#' \eqn{F(T_n,PGA,V_{s30})}.
+#' Implements the period-dependent, Vs30-dependent NGA-East site
+#' amplification recommendations of the 2017 PEER-report generation
+#' (nonlinear block transcribed from PEER Report 2017/05, Table 2.1;
+#' the historical "ST17" id is kept for backward compatibility) for the
+#' natural-log mean and standard deviation of the amplification factor
+#' \eqn{F(T_n,PGA,V_{s30})}. The nonlinear sigma applies the
+#' PGA-dependent multiplier of the source model,
+#' \eqn{\sigma_{F_{nl}} = \sigma_{f2}\,\ln((PGA_{3000}+f_3)/f_3)}
+#' (corrected 2026-07; earlier versions used bare \eqn{\sigma_{f2}},
+#' making \code{sdLnF} amplitude-independent). For the final 2020
+#' model generation see \code{\link{F_ST20}}.
 #'
 #' *If \code{vs30 == vref}, the site factor equals 1 deterministically, so
 #'   the function returns \code{muLnF = 0} and \code{sdLnF = 0} (zero
 #'   dispersion; \code{rnorm(n, 0, 0)} returns zeros and \code{ln F = 0}).*
 #'
-#' @param PGA   numeric **vector** – peak ground acceleration (in g).
-#' @param Tn    numeric **scalar** – oscillator period (s).
-#' @param vs30  numeric **scalar** – time-averaged shear-wave velocity to 30 m (m/s).
-#' @param vref  numeric **scalar** – reference velocity (760 m/s or 3000 m/s), default 760.
-#' @param Vl    numeric scalar – lower Vs30 bound for NL sigma interpolation (default 200).
-#' @param Vu    numeric scalar – upper Vs30 bound for NL sigma interpolation (default 2000).
+#' @param PGA   numeric **vector** - peak ground acceleration (in g).
+#' @param Tn    numeric **scalar** - oscillator period (s).
+#' @param vs30  numeric **scalar** - time-averaged shear-wave velocity to 30 m (m/s).
+#' @param vref  numeric **scalar** - reference velocity (760 m/s or 3000 m/s), default 760.
+#' @param Vl    numeric scalar - lower Vs30 bound for NL sigma interpolation (default 200).
+#' @param Vu    numeric scalar - upper Vs30 bound for NL sigma interpolation (default 2000).
 #'
 #' @return A \link[data.table]{data.table} with columns:
 #'   \describe{
@@ -101,8 +110,16 @@ SaF_ST17 <- function(Sa, pga, Tn, vs30, vref = 760) {
 #'     \item{\code{ID}}{character string \code{"ST17"}}}
 #'
 #' @section References:
-#' Stewart, J.P. & Seyhan, E. (2017) “Semi-empirical nonlinear site
-#' amplification model for global application.” *Earthquake Spectra* **33**(1).
+#' Stewart, J.P., Parker, G.A., Harmon, J.A., Atkinson, G.M., Boore,
+#' D.M., Darragh, R.B., Silva, W.J. & Hashash, Y.M.A. (2017) "Expert
+#' Panel Recommendations for Ergodic Site Amplification in Central and
+#' Eastern North America." PEER Report 2017/04 (linear model and F760
+#' tables, transcribed from its electronic supplement).
+#'
+#' Hashash, Y.M.A., Harmon, J., Ilhan, O., Stewart, J.P., Rathje, E.M.,
+#' Campbell, K.W., Silva, W.J. & Xu, B. (2017) "Recommendation for
+#' Ergodic Nonlinear Site Amplification in Central and Eastern North
+#' America." PEER Report 2017/05 (nonlinear model, Table 2.1).
 #'
 #' @export
 
@@ -345,8 +362,12 @@ F_ST17 <- function(PGA, Tn, vs30, vref = 760, Vl = 200, Vu = 2000) {
         sdNL <- 0
     }
 
+    ## sigma_Fnl = sigma_f2 * ln((PGA_3000 + f3)/f3): PEER 2017/05 Eq. 2.5
+    ## gives sigma_f2 (slope sigma); the Fnl sigma requires the same
+    ## PGA-dependent multiplier as muNL (cf. USGS nshmp-lib, OQ nga_east.py).
+    FRk <- log(exp(muLnPGA) / b + 1)
     sdI <- if (vref == 3000) sd760I(Tn) else 0
-    sdLnF <- sqrt(sdL^2 + sdI^2 + sdNL^2)
+    sdLnF <- sqrt(sdL^2 + sdI^2 + (sdNL * FRk)^2)
 
     ## ---------- output -----------------------------------------------------
     data.table(
@@ -357,3 +378,149 @@ F_ST17 <- function(PGA, Tn, vs30, vref = 760, Vl = 200, Vu = 2000) {
 }
 
 # nolint end
+
+
+# ============================================================
+#  NGA-East ergodic site amplification (2020) - F_ST20()
+# ============================================================
+#' Non-linear site amplification factor **F<sub>ST20</sub>**
+#'
+#' Final-generation NGA-East ergodic site-amplification model: linear
+#' component and F760 impedance/gradient weighting per Stewart et al.
+#' (2020), nonlinear component per Hashash et al. (2020), with the
+#' period-dependent nonlinear reference velocity (760 m/s for
+#' Tn < 0.4 s, 3000 m/s above) and the PGA-dependent nonlinear sigma
+#' \eqn{\sigma_{F_{nl}} = \sigma_{f2}\,\ln((PGA_{3000}+f_3)/f_3)}.
+#' Coefficients are the USGS nshmp-lib table (see
+#' \code{data-raw/SiteAmp2020.R} for provenance); reference
+#' implementation cross-checked function-by-function against OpenQuake
+#' \code{gsim/nga_east.py}.
+#'
+#' Conventions:
+#' * The published model is referenced to 3000 m/s. For
+#'   \code{vref = 760} the mean is the exact difference
+#'   \eqn{F(V_{s30}) - F(760)} of the composite model (including the
+#'   F760 weighting difference below 600 m/s and the small
+#'   \eqn{F_{nl}(760)} term at Tn >= 0.4 s), and the input \code{PGA}
+#'   (at 760 m/s) is converted to the 3000 m/s anchor via
+#'   \eqn{PGA_{3000} = PGA_{760}/2.275} (PEER 2017/05 Eq. 2.4).
+#' * \code{sdLnF} is evaluated at the target \code{vs30} only; for
+#'   \code{vref = 760} no reference-side sigma is added (the rock
+#'   hazard carries its own dispersion). For \code{vref = 3000} the
+#'   weighted F760 sigma enters the SRSS.
+#' * \code{vs30 == vref} returns \code{muLnF = 0, sdLnF = 0}
+#'   (deterministic unit factor, same contract as \code{F_ST17}).
+#' * Coefficients interpolate linearly in \eqn{\ln T_n} (OpenQuake
+#'   CoeffsTable rule); \code{Tn = 0} uses the PGA row; \code{Tn} above
+#'   the published 10 s limit is clamped to 10 s with a warning.
+#'
+#' @param PGA   numeric vector - peak ground acceleration (g) at the
+#'   \code{vref} condition.
+#' @param Tn    numeric scalar - oscillator period (s).
+#' @param vs30  numeric scalar - target Vs30 (m/s).
+#' @param vref  numeric scalar - reference velocity, 760 or 3000 m/s.
+#'
+#' @return A \link[data.table]{data.table} with columns \code{muLnF},
+#'   \code{sdLnF}, \code{ID = "ST20"}.
+#'
+#' @section References:
+#' Stewart, J.P. et al. (2020) "Ergodic site amplification model for
+#' central and eastern North America." *Earthquake Spectra* **36**(1).
+#' Hashash, Y.M.A. et al. (2020) "Nonlinear site amplification model
+#' for ergodic seismic hazard analysis in central and eastern North
+#' America." *Earthquake Spectra* **36**(1).
+#'
+#' @examples
+#' # soft-soil amplification of the 0.2 s ordinate, hazard at 760 m/s
+#' F_ST20(PGA = c(0.05, 0.2, 0.5), Tn = 0.2, vs30 = 300)
+#'
+#' # very-hard-rock reference (3000 m/s)
+#' F_ST20(PGA = 0.1, Tn = 1.0, vs30 = 760, vref = 3000)
+#' @export
+F_ST20 <- function(PGA, Tn, vs30, vref = 760) {
+    OK <- length(Tn) == 1L && length(vs30) == 1L && length(vref) == 1L &&
+        vref %in% c(760, 3000)
+    stopifnot(OK)
+    if (vs30 == vref) {
+        return(data.table(muLnF = 0, sdLnF = 0, ID = "ST20"))
+    }
+
+    C <- .st20Coef(Tn)
+    VREFNL <- if (Tn < 0.4) 760 else 3000
+    PGA3 <- if (vref == 760) PGA / 2.275 else PGA
+    FRk <- log((PGA3 + C$f3) / C$f3)
+
+    ## F760 impedance/gradient weight, Stewart et al. (2020) eqs 5-7
+    .w <- function(v) min(max(
+        (0.767 - 0.1) * log(v / 400) / log(600 / 400) + 0.1, 0.1), 0.767)
+    .f760 <- function(v) .w(v) * C$f760i + (1 - .w(v)) * C$f760g
+
+    ## linear Vs30 scaling, Stewart et al. (2020) eq 3 (3000-referenced
+    ## composite flin = fv + f760; fv branches as in OQ _get_fv)
+    .flin <- function(v) {
+        X <- if (v <= C$V1) C$c * log(C$V1 / 760)
+        else if (v <= C$V2) C$c * log(v / 760)
+        else if (v <= 2000) C$c * log(C$V2 / 760)
+        else C$c * log(C$V2 / 760) -
+            (C$c * log(C$V2 / 760) + .f760(v)) * log(v / 2000) / log(3000 / 2000)
+        if (v >= 3000) X <- -.f760(v)
+        X + .f760(v)
+    }
+
+    ## nonlinear slope f2, Hashash et al. (2020) eq 3
+    .f2 <- function(v) {
+        if (v >= C$Vc) return(0)
+        C$f4 * (exp(C$f5 * (min(v, VREFNL) - 360)) -
+                exp(C$f5 * (VREFNL - 360)))
+    }
+
+    ## linear sigma, Stewart et al. (2020) eq 4
+    .sdLin <- function(v) {
+        if (v < C$Vf) {
+            D <- C$sig_l - C$sig_vc
+            x <- (v - 200) / (C$Vf - 200)
+            C$sig_l - 2 * D * x + D * x^2
+        } else if (v <= C$V2) C$sig_vc
+        else if (v < 2000) C$sig_vc +
+            (C$sig_u - C$sig_vc) * ((v - C$V2) / (2000 - C$V2))^2
+        else if (v <= 3000) C$sig_u * (1 - log(v / 2000) / log(3000 / 2000))
+        else 0
+    }
+
+    ## nonlinear slope sigma, Hashash et al. (2020) eq 2.5 taper
+    .sdF2 <- function(v) {
+        if (v < 300) C$sig_c
+        else if (v < 1000) C$sig_c - C$sig_c * log(v / 300) / log(1000 / 300)
+        else 0
+    }
+
+    if (vref == 760) {
+        muLnF <- (.flin(vs30) - .flin(760)) + (.f2(vs30) - .f2(760)) * FRk
+        sdLnF <- sqrt(.sdLin(vs30)^2 + (.sdF2(vs30) * FRk)^2)
+    } else {
+        SD760 <- .w(vs30) * C$f760is + (1 - .w(vs30)) * C$f760gs
+        muLnF <- .flin(vs30) + .f2(vs30) * FRk
+        sdLnF <- sqrt(SD760^2 + .sdLin(vs30)^2 + (.sdF2(vs30) * FRk)^2)
+    }
+
+    data.table(muLnF = muLnF, sdLnF = sdLnF, ID = "ST20")
+}
+
+
+# Interpolated SiteAmp2020 coefficient row at period Tn: linear in
+# ln(Tn) between tabulated periods (OpenQuake CoeffsTable logratio
+# rule); Tn = 0 is the PGA row; Tn > 10 s clamps to the last row.
+.st20Coef <- function(Tn) {
+    DT <- SiteAmp2020
+    if (Tn > 10) {
+        warning("F_ST20: Tn = ", Tn,
+                " s exceeds the published 10 s table; clamped to 10 s.",
+                call. = FALSE)
+        Tn <- 10
+    }
+    if (Tn <= 0.01) return(as.list(DT[1L]))
+    i <- findInterval(Tn, DT$Tn)
+    if (DT$Tn[i] == Tn) return(as.list(DT[i]))
+    r <- (log(Tn) - log(DT$Tn[i])) / (log(DT$Tn[i + 1L]) - log(DT$Tn[i]))
+    as.list(DT[i] + r * (DT[i + 1L] - DT[i]))
+}

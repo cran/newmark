@@ -1,7 +1,7 @@
 #' Interpolate Sa(p) at arbitrary period using log-log interpolation
 #'
 #' @param uhs data.table with columns Tn, p, Sa.
-#' @param Tn numeric scalar — target period for interpolation.
+#' @param Tn numeric scalar - target period for interpolation.
 #'
 #' @return data.table with interpolated Tn, p, Sa
 #' @examples

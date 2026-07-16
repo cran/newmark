@@ -8,7 +8,8 @@ utils::globalVariables(
     "pnum", "lnSa", "Tn", "p", "Dn", "weight", "muLnD", "sdLnD",
     "LnD", "LnSaF", "muLnSaF", "sdLnSaF", "ID", "Sa", "SaF_SS17",
     "TR", "Vs30", "Vref", ".", "AEP", "IT", "POE", "iml", "imt",
-    "ky", "s", "IDn", "kmax",
+    "ky", "s", "IDg", "IDn", "K", "kmax",
+    "k", "mu", "i.mu0", "i.s0", "SiteAmp2020",
     # dsra globals
     "ValidSands", "ValidGravels", "ValidSilts", "ValidClays",
     "ValidOrganic", "ValidFines", "ValidCoarse", "ValidUSCS",

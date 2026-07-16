@@ -7,9 +7,9 @@
 invertDnDraws(draws, Da, weights, p = c(0.05, 0.1, 0.16, 0.84, 0.9, 0.95))
 }
 \arguments{
-\item{draws}{data.table(ky, s, Dn, IDn) — Dn in cm}
+\item{draws}{data.table(ky, s, Dn, IDn) - Dn in cm}
 
-\item{Da}{numeric vector — displacement targets in cm}
+\item{Da}{numeric vector - displacement targets in cm}
 
 \item{weights}{named numeric vector, ensemble weights by IDn}
 
@@ -27,7 +27,7 @@ builds weighted ensemble mean, then averages over realisations.
 }
 \details{
 Log-log linear extrapolation is used when Da falls outside the support of
-the computed Dn(ky) curve. No calibration-range clamping is applied — the
+the computed Dn(ky) curve. No calibration-range clamping is applied - the
 natural support of the curve bounds the inversion.
 
 All inputs must be in the same displacement units (cm).

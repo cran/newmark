@@ -208,8 +208,8 @@ The canonical class boundaries are:
 | Class | Vs30 range (m/s)    | Representative Vs30 |
 |-------|---------------------|--------------------:|
 | A     | ≥ 1500              | 1500                |
-| B     | 900 – 1500          | 1200                |
-| BC    | 640 – 900           | 760                 |
+| B     | 910 – 1500          | 1200                |
+| BC    | 640 – 910           | 760                 |
 | C     | 440 – 640           | 540                 |
 | CD    | 300 – 440           | 370                 |
 | D     | 210 – 300           | 255                 |
@@ -217,6 +217,42 @@ The canonical class boundaries are:
 | E     | < 150               | 150                 |
 
 ---
+
+## Site amplification models
+
+Rock-to-site amplification of spectral ordinates uses the NGA-East
+ergodic site-response family, selected with the `models` argument of
+`fitSaF()` and `fitSaFMixture()`:
+
+- **`"ST20"`** (default) — the final published generation: linear
+  model and F760 impedance/gradient weighting per Stewart et al.
+  (2020), nonlinear model per Hashash et al. (2020) with a
+  period-dependent nonlinear reference velocity (760 m/s below
+  0.4 s, 3000 m/s above) and a PGA-dependent nonlinear sigma.
+  Coefficients are regenerated from the USGS nshmp-lib
+  machine-readable table.
+- **`"ST17"`** — the 2017 PEER-report generation (PEER Report
+  2017/05), retained for backward comparison with earlier studies.
+
+Both models are referenced to very hard rock
+(*V*<sub>S30</sub> = 3000 m/s). With `vref = 760` (the usual
+reference-rock hazard condition) the reported mean factor is the
+exact difference of the composite model,
+ln *F* = *F*(*V*<sub>S30</sub>) − *F*(760), and the input PGA is
+converted to the 3000 m/s anchor with the PEER 2017/05 factor
+*PGA*<sub>3000</sub> = *PGA*<sub>760</sub>/2.275. The dispersion
+σ<sub>ln F</sub> is evaluated at the target *V*<sub>S30</sub> only:
+the reference-rock hazard already carries its own dispersion, so no
+reference-side sigma is added. At `vs30 == vref` the factor is
+deterministically 1 (zero dispersion).
+
+When the rock hazard is available as an analytic lognormal mixture
+(one component per rupture-variant and ground-motion-model branch, as
+produced by deterministic scenario engines), `fitSaFMixture()`
+composes the mixture with the site-factor lognormal exactly —
+Gauss–Hermite quadrature over the PGA channel and monotone inversion
+of the pooled distribution — with no Monte Carlo sampling; results
+are reproducible byte-for-byte.
 
 ## Application
 
@@ -238,5 +274,9 @@ see `?fitSaF` and the methodology in
 ## References
 
 - Gazetas, G. & Dakoulas, P. (1985). *Soil Dyn. Earthq. Eng.* 4(4):166–182.
+- Hashash, Y.M.A. et al. (2017). *Recommendation for Ergodic Nonlinear Site
+  Amplification in Central and Eastern North America*. PEER Report 2017/05.
+- Hashash, Y.M.A. et al. (2020). *Earthquake Spectra* 36(1). doi:10.1177/8755293019878193.
 - Ishihara, K. (1996). *Soil Behaviour in Earthquake Geotechnics*. Oxford University Press.
+- Stewart, J.P. et al. (2020). *Earthquake Spectra* 36(1). doi:10.1177/8755293019878185.
 - ASCE/SEI 7-22 (2022). *Minimum Design Loads and Associated Criteria for Buildings and Other Structures*. American Society of Civil Engineers.

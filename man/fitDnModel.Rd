@@ -4,7 +4,7 @@
 \alias{fitDnModel}
 \title{Newmark displacement for a single submodel and scenario}
 \usage{
-fitDnModel(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100, IDn, NFC = "D100")
+fitDnModel(uhs, ky, Ts, Mw = 6.5, NS = 30L, IDn, NFC = "D100", pulse = FALSE)
 }
 \arguments{
 \item{uhs}{data.table with columns Tn, p, Sa (one scenario)}
@@ -17,13 +17,15 @@ fitDnModel(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100, IDn, NFC = "D100")
 
 \item{NS}{integer, Monte Carlo samples}
 
-\item{Rrup}{numeric scalar, rupture distance (km)}
-
 \item{IDn}{character, submodel identifier}
 
 \item{NFC}{character, near-fault component selector for model BM19:
 \code{"D100"} (maximum component, default) or \code{"D50"}.
 Ignored by all other submodels.}
+
+\item{pulse}{logical, near-fault forward-directivity pulse motion
+declared by the analyst (BM19 only; see \code{?Dn_BM19}). Default
+\code{FALSE}.}
 }
 \value{
 data.table with columns p, Dn, IDn. Dn in cm.

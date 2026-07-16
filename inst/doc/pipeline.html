@@ -399,14 +399,13 @@ period; the second amplifies the rock UHS to the target Vs30.</p>
 <span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  <span class="at">uhs   =</span> uhs_rock,                     <span class="co"># rock UHS data.table (Tn, p, Sa)</span></span>
 <span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  <span class="at">vs30  =</span> <span class="dv">350</span>,                          <span class="co"># target site Vs30 (m/s)</span></span>
 <span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>  <span class="at">vref  =</span> <span class="dv">760</span>,                          <span class="co"># reference rock Vs30</span></span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>  <span class="at">ns    =</span> <span class="dv">1000</span>,                         <span class="co"># Monte Carlo size</span></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>  <span class="at">Rrup  =</span> <span class="dv">100</span>                           <span class="co"># rupture distance (km)</span></span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>)</span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="co"># returns a data.table with Tn, p, Sa, SaF, AF</span></span></code></pre></div>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>  <span class="at">ns    =</span> <span class="dv">1000</span>                          <span class="co"># Monte Carlo size</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>)</span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="co"># returns a data.table with Tn, p, Sa, SaF, AF</span></span></code></pre></div>
 <p>Two reference vignettes deepen this workflow:
 <code>vignette(&quot;dynamic-site-response&quot;, package = &quot;newmark&quot;)</code>
-covers the methodology side (Ishihara, Gazetas–Dakoulas, ST17);
-function-level docs are at <code>?getSiteProperties</code>,
+covers the methodology side (Ishihara, Gazetas–Dakoulas, NGA-East site
+response); function-level docs are at <code>?getSiteProperties</code>,
 <code>?getCylinderRoots</code>, <code>?fitModel.Ts</code>,
 <code>?Vs30toSID</code>, <code>?SIDtoVs30</code>,
 <code>?fitSaF</code>.</p>
@@ -439,12 +438,11 @@ six-model ensemble.</p>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">Ts      =</span> Ts,</span>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="at">Mw      =</span> <span class="fl">6.8</span>,                        <span class="co"># representative magnitude</span></span>
 <span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="at">NS      =</span> <span class="dv">200</span>,                        <span class="co"># Monte Carlo size</span></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="at">Rrup    =</span> <span class="dv">100</span>,</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">weights =</span> <span class="fu">c</span>(<span class="at">AM88 =</span> <span class="dv">1</span>, <span class="at">JB07 =</span> <span class="dv">0</span>, <span class="at">BT07 =</span> <span class="dv">1</span>, <span class="at">SR08 =</span> <span class="dv">1</span>, <span class="at">BM17 =</span> <span class="dv">0</span>, <span class="at">BM19 =</span> <span class="dv">1</span>),</span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="at">NFC     =</span> <span class="st">&quot;D100&quot;</span>                      <span class="co"># near-fault component selector for BM19</span></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>)</span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co"># result$curve  data.table(ky, p, Dn, IDn, w)  with quantiles + ensemble per ky</span></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co"># result$draws  data.table(ky, s, Dn, IDn)     all NS realisations per model</span></span></code></pre></div>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="at">weights =</span> <span class="fu">c</span>(<span class="at">AM88 =</span> <span class="dv">1</span>, <span class="at">JB07 =</span> <span class="dv">0</span>, <span class="at">BT07 =</span> <span class="dv">1</span>, <span class="at">SR08 =</span> <span class="dv">1</span>, <span class="at">BM17 =</span> <span class="dv">0</span>, <span class="at">BM19 =</span> <span class="dv">1</span>),</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">NFC     =</span> <span class="st">&quot;D100&quot;</span>                      <span class="co"># near-fault component selector for BM19</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>)</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co"># result$curve  data.table(ky, p, Dn, IDn, w)  with quantiles + ensemble per ky</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co"># result$draws  data.table(ky, s, Dn, IDn)     all NS realisations per model</span></span></code></pre></div>
 <p>The single-scenario sampling in <code>fitDnCurve()</code> (one PGA,
 Sa(1.3 <em>T</em>_s), Sa(1.5<em>T</em>_s) tuple drawn per realisation,
 correlated by the full Baker-Jayaram inter-period matrix) and the shared

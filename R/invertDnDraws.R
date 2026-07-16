@@ -1,5 +1,5 @@
 ###############################################################################
-# invertDnDraws.R — Direct kmax inversion from Dn realisations
+# invertDnDraws.R - Direct kmax inversion from Dn realisations
 ###############################################################################
 
 #' Invert Dn draws to kmax(Da)
@@ -8,13 +8,13 @@
 #' builds weighted ensemble mean, then averages over realisations.
 #'
 #' Log-log linear extrapolation is used when Da falls outside the support of
-#' the computed Dn(ky) curve. No calibration-range clamping is applied — the
+#' the computed Dn(ky) curve. No calibration-range clamping is applied - the
 #' natural support of the curve bounds the inversion.
 #'
 #' All inputs must be in the same displacement units (cm).
 #'
-#' @param draws   data.table(ky, s, Dn, IDn) — Dn in cm
-#' @param Da      numeric vector — displacement targets in cm
+#' @param draws   data.table(ky, s, Dn, IDn) - Dn in cm
+#' @param Da      numeric vector - displacement targets in cm
 #' @param weights named numeric vector, ensemble weights by IDn
 #' @param p       numeric quantiles in (0,1) to report alongside the mean.
 #'                Default c(0.05, 0.10, 0.16, 0.84, 0.90, 0.95). The output

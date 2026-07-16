@@ -4,7 +4,16 @@
 \alias{fitDnCurve}
 \title{Newmark displacement curve Dn(ky) for one scenario}
 \usage{
-fitDnCurve(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100, weights, NFC = "D100")
+fitDnCurve(
+  uhs,
+  ky,
+  Ts,
+  Mw = 6.5,
+  NS = 30L,
+  weights,
+  NFC = "D100",
+  pulse = FALSE
+)
 }
 \arguments{
 \item{uhs}{data.table with columns Tn, p, Sa (one scenario)}
@@ -18,17 +27,19 @@ fitDnCurve(uhs, ky, Ts, Mw = 6.5, NS = 30L, Rrup = 100, weights, NFC = "D100")
 \item{NS}{integer, Monte Carlo samples for curve quantiles and
 per-realisation draws.}
 
-\item{Rrup}{numeric scalar, rupture distance (km)}
-
 \item{weights}{named numeric vector, ensemble weights by IDn}
 
 \item{NFC}{character, near-fault component selector for model BM19:
 \code{"D100"} (maximum component, default) or \code{"D50"}.
 Ignored by all other submodels.}
+
+\item{pulse}{logical, near-fault forward-directivity pulse motion
+declared by the analyst (BM19 only; see \code{?Dn_BM19}). Default
+\code{FALSE} = ordinary-motion equation.}
 }
 \value{
 list(curve, draws). curve = data.table(ky, p, Dn, IDn, w).
-draws = data.table(ky, s, Dn, IDn) — always populated (possibly
+draws = data.table(ky, s, Dn, IDn) - always populated (possibly
 empty when no model produces output). Dn in cm.
 }
 \description{

@@ -11,13 +11,19 @@ Dn_SR08(PGA, ky, AI = NULL)
 
 \item{ky}{Yield acceleration (g).}
 
-\item{AI}{Arias Intensity (m/s); if NULL, back-calculated from PGA.}
+\item{AI}{Arias Intensity (m/s); if NULL, back-calculated from PGA
+via an in-house rock-site regression (SeVyT 2023 dataset).}
 }
 \value{
 data.table(muLnD, sdLnD, ID = "SR08")
 }
 \description{
-Saygili & Rathje (2008) model
+Implements the two-parameter (PGA, Arias intensity) vector model
+(Saygili & Rathje 2008 Eq. 6, Tables 1-2), including its
+amplitude-dependent sigma 0.46 + 0.56 (ky/PGA). Note the authors'
+recommended vector model was (PGA, PGV); the (PGA, Ia) variant is
+published and adopted here for consistency with the Arias-based
+rigid ensemble.
 }
 \examples{
 Dn_SR08(PGA = 0.5, ky = 0.1)

@@ -5,11 +5,11 @@
 \alias{CylinderRoots}
 \title{Cylinder Roots Data}
 \format{
-A data frame with 307124 rows and 4 variables:
+A data frame with 307128 rows and 4 variables:
 \describe{
-\item{n}{Integer: Root number (1-10)}
+\item{n}{Integer: Mode number (1-8)}
 \item{m}{Double: Inhomogeneity ratio (0-0.95)}
-\item{l}{Double: Aspect Ratio (0-0.4950)}
+\item{l}{Double: Aspect Ratio (0-0.5)}
 \item{an}{Double: Cylinder roots}
 }
 }

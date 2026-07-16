@@ -2,15 +2,14 @@
 % Please edit documentation in R/fitSaF.R
 \name{fitSaF}
 \alias{fitSaF}
-\title{Site-amplified AUXtral acceleration (Seyhan & Stewart 2014)}
+\title{Site-amplified spectral acceleration (NGA-East site-response models)}
 \usage{
 fitSaF(
   uhs,
   vs30,
   vref = 760,
   ns = 1000,
-  models = "ST17",
-  Rrup = 100,
+  models = "ST20",
   p_TARGET = c(0.05, 0.1, 0.16, 0.5, 0.84, 0.9, 0.95)
 )
 }
@@ -23,11 +22,10 @@ fitSaF(
 
 \item{ns}{Monte Carlo size (default 1000).}
 
-\item{models}{character. Site-response model id. Currently the only
-implemented model is \code{"ST17"}; reserved for future
-site-response models.}
-
-\item{Rrup}{rupture distance (km) for rhoBJ() in the quantile case (default 100).}
+\item{models}{character. Site-response model id: \code{"ST20"}
+(default; Stewart/Hashash 2020 NGA-East generation, see
+\code{\link{F_ST20}}) or \code{"ST17"} (PEER 2017/05
+generation, see \code{\link{F_ST17}}).}
 
 \item{p_TARGET}{probabilities to report when only 'mean' is provided,
 default c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95).}
@@ -36,20 +34,25 @@ default c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95).}
 data.table with columns Tn, p, Sa, SaF, AF.
 }
 \description{
-Computes site-amplified AUXtral acceleration using two modes:
+Computes site-amplified spectral acceleration using two modes:
 (A) If the input UHS contains only p == "mean", rock Sa is treated as
-deterministic and the dispersion in SaF comes solely from F_ST17
-(sdLnF), sampled on the natural-log scale.
+deterministic and the dispersion in SaF comes solely from the
+site-response model (sdLnF), sampled on the natural-log scale.
 (B) If the input UHS contains numeric quantiles (e.g., "0.10", "0.50", ...),
 ln Sa(Tn) is sampled from those quantiles using an empirical inverse
 quantile function (buildQSpline). Dependence between PGA and Sa(Tn)
-is represented by a Gaussian "star" copula (Baker & Jayaram, 2009)
-with correlation rhoBJ(Tn, T0 = 0, Rrup). For each Monte Carlo draw,
-F_ST17 is evaluated with the paired PGA draw, and ln SaF = ln Sa + ln F
-with ln F ~ Normal(muLnF, sdLnF). Independence between ln Sa and ln F
-is assumed.
+is represented by a per-period Gaussian "star" copula with the
+Baker & Jayaram (2008) correlation rhoBJ(Tn, T0 = 0), which has
+no distance dependence. For each Monte Carlo draw, the
+site-response model is evaluated with the paired PGA draw, and
+ln SaF = ln Sa + ln F with ln F ~ Normal(muLnF, sdLnF).
+Independence between ln Sa and ln F is assumed. Each sampled
+vector is re-centered to the tabulated mean of its marginal.
 }
 \details{
+For scenario (DSHA) tables with analytic mixture components available,
+prefer \code{\link{fitSaFMixture}} (exact, sampling-free).
+
 Requirements:
 \itemize{
 \item The input table must have columns Tn, p, Sa.

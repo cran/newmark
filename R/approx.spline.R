@@ -134,7 +134,7 @@ approx.spline <- function(x, y = NULL,
     }
 
     yout <- toY(yout)
-    if (HasZero) { # splice (0, Sa0) back in
+    if (HasZero) { # splice (0, Sa0) back in
         xo <- c(x0, xo)
         yout <- c(y0, yout)
     }

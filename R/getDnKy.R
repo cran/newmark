@@ -1,5 +1,5 @@
 ###############################################################################
-# getDnKy.R — Scenario-specific ky grid for Dn(ky) evaluation
+# getDnKy.R - Scenario-specific ky grid for Dn(ky) evaluation
 ###############################################################################
 
 #' Build a log-spaced ky grid for one scenario

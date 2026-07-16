@@ -281,19 +281,31 @@ Working paper.</p>
 </div>
 <div id="three-stage-structure" class="section level2">
 <h2>Three-stage structure</h2>
-<div id="stage-1-site-amplification-fitsaf" class="section level3">
-<h3>Stage 1 — Site amplification (<code>fitSaF</code>)</h3>
+<div id="stage-1-site-amplification-fitsaf-fitsafmixture" class="section level3">
+<h3>Stage 1 — Site amplification (<code>fitSaF</code>,
+<code>fitSaFMixture</code>)</h3>
 <p>Rock-level spectral ordinates are amplified to the target site Vs30
-using the Seyhan &amp; Stewart (2014) nonlinear site-factor model
-(ST17).</p>
+using the NGA-East ergodic site-response models: <code>&quot;ST20&quot;</code>
+(default; Stewart et al. 2020 linear model, Hashash et al. 2020
+nonlinear model) or <code>&quot;ST17&quot;</code> (the 2017 PEER-report
+generation), selected via the <code>models</code> argument.</p>
 <ul>
 <li><strong>Mode A</strong> (mean-only input): rock Sa is deterministic;
-dispersion comes from ST17 sigma alone.</li>
-<li><strong>Mode B</strong> (quantile input): Sa is sampled jointly
-across periods via Gaussian copula; dispersion reflects combined hazard
-and site-factor uncertainty.</li>
+dispersion comes from the site-model sigma alone.</li>
+<li><strong>Mode B</strong> (quantile input): Sa is sampled per period
+from the empirical quantile function, with the PGA–Sa(Tn) dependence
+represented by a per-period two-variable Gaussian copula (Baker &amp;
+Jayaram 2008 correlation); dispersion reflects combined hazard and
+site-factor uncertainty. The full inter-period correlation matrix is
+used downstream in <code>fitDnCurve()</code>, not in this per-period
+stage.</li>
+<li><strong>Mixture input</strong> (<code>fitSaFMixture</code>): when
+the rock hazard is an analytic lognormal mixture (DSHA scenario engine),
+the composition with the site-factor lognormal is evaluated exactly by
+quadrature — no sampling, byte-stable output.</li>
 </ul>
-<p>See <code>?fitSaF</code> for the function-level interface.</p>
+<p>See <code>?fitSaF</code> and <code>?fitSaFMixture</code> for the
+function-level interface.</p>
 </div>
 <div id="stage-2-displacement-curve-fitdncurve" class="section level3">
 <h3>Stage 2 — Displacement curve (<code>fitDnCurve</code>)</h3>
@@ -395,6 +407,14 @@ realisation.</li>
 calibration ranges (<code>getKyLimits()</code>) are reported as a
 diagnostic but not enforced as a clamp inside
 <code>invertDnDraws()</code>.</li>
+<li>Zero-displacement screening: the flexible-block papers define a
+discrete probability mass P(D = 0) (negligible displacement) ahead of
+the lognormal branch. The package intentionally omits it and returns the
+unconditional lognormal — a conservative convention (small displacements
+are over- rather than under-predicted).</li>
+<li>Near-fault pulse behaviour (BM19) is a declared attribute of the
+record/scenario (<code>pulse</code> argument, default ordinary), not an
+automatic PGV-threshold switch.</li>
 </ul>
 </div>
 <div id="operational-defaults" class="section level2">
@@ -406,10 +426,9 @@ Convergence diagnostics (band-width stability under <em>N</em>_S × 2)
 accompany each application.</li>
 <li><em>k</em>_y grid points: <em>N</em>_k = 30, log-spaced over <span class="math display">\[0.01, max(PGA, 0.80)\]</span> g (default of
 <code>getDnKy()</code>).</li>
-<li>Reported quantiles: mean plus <em>p</em> ∈ {0.16, 0.50, 0.84}.
-Extreme-tail reporting (<em>p</em> ∈ {0.05, 0.95}) is requested
-explicitly via the <code>p</code> argument to
-<code>invertDnDraws()</code>.</li>
+<li>Reported quantiles: <code>invertDnDraws()</code> defaults to the
+mean plus <em>p</em> ∈ {0.05, 0.10, 0.16, 0.84, 0.90, 0.95}; the median
+and any other levels are requested via its <code>p</code> argument.</li>
 </ul>
 <hr />
 </div>
@@ -427,8 +446,9 @@ Eng.</em> 145(12); <em>Soil Dyn. Earthq. Eng.</em> 168:107835.</li>
 <li>Jibson (2007). <em>Engineering Geology</em> 91(2–4):209–218.</li>
 <li>Saygili &amp; Rathje (2008). <em>J. Geotech. Geoenviron. Eng.</em>
 134(6):790–803.</li>
-<li>Seyhan &amp; Stewart (2014). <em>Earthquake Spectra</em>
-30(3):1241–1256.</li>
+<li>Stewart et al. (2020). <em>Earthquake Spectra</em> 36(1). <a href="doi:10.1177/8755293019878185" class="uri">doi:10.1177/8755293019878185</a>.</li>
+<li>Hashash et al. (2020). <em>Earthquake Spectra</em> 36(1). <a href="doi:10.1177/8755293019878193" class="uri">doi:10.1177/8755293019878193</a>.</li>
+<li>Hashash et al. (2017). PEER Report 2017/05.</li>
 </ul>
 </div>
 

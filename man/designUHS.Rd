@@ -2,9 +2,9 @@
 % Please edit documentation in R/designUHS.R
 \name{designUHS}
 \alias{designUHS}
-\title{MCER / Design elastic spectrum for a Vs30/Vref slice (ASCE 7-22)}
+\title{MCER / Design elastic spectrum for a Vs30/Vref slice (ASCE 7-22 shape)}
 \usage{
-designUHS(UHS, TL = 8, spectrum = c("MCER", "DESIGN"))
+designUHS(UHS, TL = 8, spectrum = c("MCER", "DESIGN"), vs30 = NULL)
 }
 \arguments{
 \item{UHS}{data.table slice from UHSTable (single TR, p == "mean").}
@@ -12,11 +12,28 @@ designUHS(UHS, TL = 8, spectrum = c("MCER", "DESIGN"))
 \item{TL}{numeric, long-period transition (seconds). Default 8.}
 
 \item{spectrum}{character, "MCER" (default) or "DESIGN" (2/3 * MCER).}
+
+\item{vs30}{numeric scalar or NULL. Site Vs30 (m/s) selecting the
+Sec. 21.4 SD1 window: 1 to 2 s when vs30 > 442 m/s, else 1 to 5 s.
+NULL (default) uses the conservative 1 to 5 s window.}
 }
 \value{
 data.table with columns \verb{Tn, SaF}.
 }
 \description{
+Builds the two-period design/MCER spectrum shape of ASCE 7-22
+Sec. 11.4.5.2 (Eqs. 11.4-3/-4/-5, DESIGN = 2/3 x MCER), with the
+spectral parameters derived from the input site-specific spectrum
+per ASCE 7-22 Sec. 21.4: at MCER level, SMS = 0.9 x max SaM(T) over
+T from 0.2 to 5 s, and SM1 = max(0.9 x max of T x SaM(T), SaM(1 s))
+over T from 1 to 2 s when vs30 > 442 m/s, else 1 to 5 s (the 1.5 and 2/3
+factors of Eqs. 21.4/11.4-1/-2 cancel at MCER level). Evaluation
+windows are clamped to the period range of the input. The
+Sec. 21.2.3 80-percent floor and the Sec. 21.2.2 deterministic cap
+are NOT applied (both require mapped/deterministic inputs this
+function does not receive). See NEWS.md for the audit summary.
+}
+\details{
 The input \code{UHS} slice must contain at least \code{Tn} and \code{SaF}.
 Typical usage passes a single TR and \code{p == "mean"}.
 }

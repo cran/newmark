@@ -1,5 +1,5 @@
 ###############################################################################
-# getKyLimits.R — Calibration ky range per Newmark displacement model
+# getKyLimits.R - Calibration ky range per Newmark displacement model
 ###############################################################################
 
 #' Get calibrated ky range for each displacement model

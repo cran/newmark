@@ -74,15 +74,15 @@ saf <- fitSaF(
   uhs   = uhs_rock,                     # rock UHS data.table (Tn, p, Sa)
   vs30  = 350,                          # target site Vs30 (m/s)
   vref  = 760,                          # reference rock Vs30
-  ns    = 1000,                         # Monte Carlo size
-  Rrup  = 100                           # rupture distance (km)
+  ns    = 1000                          # Monte Carlo size
 )
 # returns a data.table with Tn, p, Sa, SaF, AF
 ```
 
 Two reference vignettes deepen this workflow:
 `vignette("dynamic-site-response", package = "newmark")` covers
-the methodology side (Ishihara, Gazetas–Dakoulas, ST17);
+the methodology side (Ishihara, Gazetas–Dakoulas, NGA-East site
+response);
 function-level docs are at `?getSiteProperties`,
 `?getCylinderRoots`, `?fitModel.Ts`, `?Vs30toSID`, `?SIDtoVs30`,
 `?fitSaF`.
@@ -120,7 +120,6 @@ result <- fitDnCurve(
   Ts      = Ts,
   Mw      = 6.8,                        # representative magnitude
   NS      = 200,                        # Monte Carlo size
-  Rrup    = 100,
   weights = c(AM88 = 1, JB07 = 0, BT07 = 1, SR08 = 1, BM17 = 0, BM19 = 1),
   NFC     = "D100"                      # near-fault component selector for BM19
 )

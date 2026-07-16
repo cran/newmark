@@ -4,7 +4,7 @@
 \alias{Dn_BM19}
 \title{Bray & Macedo (2019, corrected 2023) - shallow-crustal events}
 \usage{
-Dn_BM19(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100")
+Dn_BM19(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100", pulse = FALSE)
 }
 \arguments{
 \item{ky}{Yield acceleration (g).}
@@ -21,7 +21,15 @@ Dn_BM19(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100")
 
 \item{NFC}{Near-fault component: "D100" (default; max-component, slope
 within 45 deg of fault-normal) or "D50" (median-component, other
-orientations). Used only when PGV > 115 cm/s.}
+orientations). Used only when \code{pulse = TRUE}.}
+
+\item{pulse}{logical. Near-fault forward-directivity pulse motion
+(a property of the ground-motion record/scenario declared by the
+analyst, per Bray & Macedo 2019/2023 and the authors' spreadsheet).
+Default \code{FALSE} = ordinary-motion equation for all draws.
+When \code{TRUE}, the published pulse equations apply with their
+PGV sub-regime split at 150 cm/s. (Versions <= 1.2.0 switched
+automatically at PGV > 115 cm/s; that surrogate rule is retired.)}
 }
 \value{
 data.table(muLnD, sdLnD, ID = "BM19")
@@ -29,10 +37,10 @@ data.table(muLnD, sdLnD, ID = "BM19")
 \description{
 Multi-equation structure per BM23 (Soil Dynamics and Earthquake Engineering
 168, 107835, DOI 10.1016/j.soildyn.2023.107835):
-Eq (10): ordinary motions, PGV <= 115 cm/s
-Eq (6):  D100 max-component, PGV > 115 cm/s
-Eq (7):  D50  median-component, PGV > 115 cm/s
-with a sub-regime split at PGV = 150 cm/s within Eqs (6) and (7).
+Eq (10): ordinary motions (default; see \code{pulse})
+Eq (6):  D100 max-component pulse equation
+Eq (8):  D50  median-component pulse equation
+with a sub-regime split at PGV = 150 cm/s within Eqs (6) and (8).
 }
 \examples{
 Dn_BM19(ky = 0.1, Ts = 0.3, Sa = 0.8, PGA = 0.5, PGV = 80, Mw = 7.0)

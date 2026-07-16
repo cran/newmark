@@ -313,7 +313,7 @@ importModel.oqRMw <- function(path, ITo, vref) {
 #' @keywords internal
 #' @noRd
 .extractTnFromHeader <- function(line) {
-    l <- tolower(line) # ignora mayúsculas
+    l <- tolower(line) # ignora mayusculas
     # --- PGA --------------------------------------------------------------
     if (grepl("imt=[\"']?pga[\"']?", l)) {
         return(0)

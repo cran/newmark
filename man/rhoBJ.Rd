@@ -4,7 +4,7 @@
 \alias{rhoBJ}
 \title{Baker and Jayaram (2008) inter-period correlation model}
 \usage{
-rhoBJ(Tn, T0 = 0.01, Rrup = 100)
+rhoBJ(Tn, T0 = 0.01)
 }
 \arguments{
 \item{Tn}{Numeric scalar. Target spectral period in seconds.}
@@ -12,8 +12,6 @@ rhoBJ(Tn, T0 = 0.01, Rrup = 100)
 \item{T0}{Numeric scalar. Reference period in seconds. Default 0.01
 (used as a numerical proxy for PGA). Values <= 0 are silently
 converted to 0.01.}
-
-\item{Rrup}{Numeric scalar. Not used; retained for backward compatibility.}
 }
 \value{
 Numeric scalar correlation coefficient rho(T0, Tn).
@@ -26,7 +24,6 @@ of Baker and Jayaram (2008), Earthquake Spectra 24(1), 299-317
 }
 \details{
 The model has no dependence on rupture distance or magnitude.
-\code{Rrup} is retained for signature compatibility and is silently ignored.
 Periods of zero are treated as 0.01 s (standard PGA proxy in B&J 2008).
 
 Form (Eqs. 5-6 of B&J 2008):

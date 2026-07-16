@@ -9,7 +9,7 @@ interpolateSaTable(uhs, Tn)
 \arguments{
 \item{uhs}{data.table with columns Tn, p, Sa.}
 
-\item{Tn}{numeric scalar — target period for interpolation.}
+\item{Tn}{numeric scalar - target period for interpolation.}
 }
 \value{
 data.table with interpolated Tn, p, Sa

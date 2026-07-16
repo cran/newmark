@@ -22,8 +22,13 @@ Dn_AM88 <- function(PGA, ky) {
 
 
 #' Jibson (2007) empirical model
+#'
+#' Implements Jibson (2007) Eq. 10 (Arias intensity + critical
+#' acceleration ratio; sigma_log10 = 0.616), one of the four
+#' regressions published in that paper.
 #' @inheritParams Dn_AM88
-#' @param AI Arias Intensity (m/s); if NULL, back-calculated from PGA.
+#' @param AI Arias Intensity (m/s); if NULL, back-calculated from PGA
+#'   via an in-house rock-site regression (SeVyT 2023 dataset).
 #' @return data.table(muLnD, sdLnD, ID = "JB07")
 #' @examples
 #' Dn_JB07(PGA = 0.5, ky = 0.1)
@@ -42,6 +47,13 @@ Dn_JB07 <- function(PGA, ky, AI = NULL) {
 }
 
 #' Saygili & Rathje (2008) model
+#'
+#' Implements the two-parameter (PGA, Arias intensity) vector model
+#' (Saygili & Rathje 2008 Eq. 6, Tables 1-2), including its
+#' amplitude-dependent sigma 0.46 + 0.56 (ky/PGA). Note the authors'
+#' recommended vector model was (PGA, PGV); the (PGA, Ia) variant is
+#' published and adopted here for consistency with the Arias-based
+#' rigid ensemble.
 #' @inheritParams Dn_JB07
 #' @return data.table(muLnD, sdLnD, ID = "SR08")
 #' @examples
@@ -74,9 +86,12 @@ Dn_BT07 <- function(ky, Sa, Ts, Mw = 6.5) {
     lnSa <- log(Sa)
     lnky <- log(ky)
 
-    muLnD <- -1.10 - 2.83 * lnky - 0.333 * lnky^2 +
+    ## BT07 Eq. 5: intercept -1.10 is replaced by -0.22 for nearly rigid
+    ## sliding masses (Ts < 0.05 s) per the published bias correction.
+    a0 <- if (Ts < 0.05) -0.22 else -1.10
+    muLnD <- a0 - 2.83 * lnky - 0.333 * lnky^2 +
         0.566 * lnky * lnSa + 3.04 * lnSa -
-        0.244 * lnSa^2 + 0.278 * (Mw - 7)
+        0.244 * lnSa^2 + 1.50 * Ts + 0.278 * (Mw - 7)
 
     sdLnD <- 0.66
 
@@ -128,10 +143,10 @@ Dn_BM17 <- function(ky, Sa, Ts, Mw = 7.5) {
 #'
 #' Multi-equation structure per BM23 (Soil Dynamics and Earthquake Engineering
 #' 168, 107835, DOI 10.1016/j.soildyn.2023.107835):
-#'   Eq (10): ordinary motions, PGV <= 115 cm/s
-#'   Eq (6):  D100 max-component, PGV > 115 cm/s
-#'   Eq (7):  D50  median-component, PGV > 115 cm/s
-#' with a sub-regime split at PGV = 150 cm/s within Eqs (6) and (7).
+#'   Eq (10): ordinary motions (default; see \code{pulse})
+#'   Eq (6):  D100 max-component pulse equation
+#'   Eq (8):  D50  median-component pulse equation
+#' with a sub-regime split at PGV = 150 cm/s within Eqs (6) and (8).
 #'
 #' @param ky   Yield acceleration (g).
 #' @param Ts   Fundamental period (s).
@@ -141,12 +156,20 @@ Dn_BM17 <- function(ky, Sa, Ts, Mw = 7.5) {
 #' @param Mw   Moment magnitude (default 6.5).
 #' @param NFC  Near-fault component: "D100" (default; max-component, slope
 #'   within 45 deg of fault-normal) or "D50" (median-component, other
-#'   orientations). Used only when PGV > 115 cm/s.
+#'   orientations). Used only when \code{pulse = TRUE}.
+#' @param pulse logical. Near-fault forward-directivity pulse motion
+#'   (a property of the ground-motion record/scenario declared by the
+#'   analyst, per Bray & Macedo 2019/2023 and the authors' spreadsheet).
+#'   Default \code{FALSE} = ordinary-motion equation for all draws.
+#'   When \code{TRUE}, the published pulse equations apply with their
+#'   PGV sub-regime split at 150 cm/s. (Versions <= 1.2.0 switched
+#'   automatically at PGV > 115 cm/s; that surrogate rule is retired.)
 #' @return data.table(muLnD, sdLnD, ID = "BM19")
 #' @examples
 #' Dn_BM19(ky = 0.1, Ts = 0.3, Sa = 0.8, PGA = 0.5, PGV = 80, Mw = 7.0)
 #' @export
-Dn_BM19 <- function(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100") {
+Dn_BM19 <- function(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100",
+                    pulse = FALSE) {
     n <- length(Sa)
     if (!(length(PGA) == n && length(PGV) == n)) {
         stop("Sa, PGA, and PGV must have the same length")
@@ -159,11 +182,11 @@ Dn_BM19 <- function(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100") {
     lnky  <- log(ky)
     lnPGV <- log(PGV)
 
-    Ordinary  <- PGV <= 115
-    PulseLow  <- PGV >  115 & PGV <= 150
-    PulseHigh <- PGV >  150
+    Ordinary  <- rep(!pulse, n)
+    PulseLow  <- pulse & PGV <= 150
+    PulseHigh <- pulse & PGV >  150
 
-    # Eq (10): ordinary motions — identical to the pre-fix implementation
+    # Eq (10): ordinary motions - identical to the pre-fix implementation
     A0Ord <- if (Ts < 0.1) {
         -4.684 + 0.603 * Mw - 9.471 * Ts - 2.482 * lnky - 0.244 * lnky^2
     } else {
@@ -173,7 +196,7 @@ Dn_BM19 <- function(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100") {
 
     # Pulse equation coefficients (Eq 6 D100 or Eq 7 D50)
     if (NFC == "D100") {
-        # Eq (6) — BM23 coefficients (verified from paper text)
+        # Eq (6) - BM23 coefficients (verified from paper text)
         if (Ts < 0.1) {
             C1Low <- -6.724; C1High <-  1.991; c2 <- -2.744; c3 <-  0.000
         } else {
@@ -183,7 +206,10 @@ Dn_BM19 <- function(ky, Ts, Sa, PGA, PGV, Mw = 6.5, NFC = "D100") {
         b1 <- 2.632; b2 <- 0.278; b3 <- 0.527; b4 <- 1.978; b5 <- 0.233
         Bm <- 0.01; SdPulse <- 0.56
     } else {
-        # Eq (7) — BM23 coefficients (verified from paper text)
+        # Eq (8) - BM23 coefficients (verified from paper text).
+        # NOTE: for PGV > 150 & Ts < 0.1 the published c1 = 2.480 disagrees
+        # with Bray's official spreadsheet (-0.148); the paper is followed
+        # (see dev/SoT/AUDIT-MATH-DOC-WAVE2-20260715.md).
         if (Ts < 0.1) {
             C1Low <- -7.497; C1High <-  2.480; c2 <- -2.731; c3 <-  0.000
         } else {

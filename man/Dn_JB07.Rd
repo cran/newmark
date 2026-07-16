@@ -11,13 +11,16 @@ Dn_JB07(PGA, ky, AI = NULL)
 
 \item{ky}{Yield acceleration (g).}
 
-\item{AI}{Arias Intensity (m/s); if NULL, back-calculated from PGA.}
+\item{AI}{Arias Intensity (m/s); if NULL, back-calculated from PGA
+via an in-house rock-site regression (SeVyT 2023 dataset).}
 }
 \value{
 data.table(muLnD, sdLnD, ID = "JB07")
 }
 \description{
-Jibson (2007) empirical model
+Implements Jibson (2007) Eq. 10 (Arias intensity + critical
+acceleration ratio; sigma_log10 = 0.616), one of the four
+regressions published in that paper.
 }
 \examples{
 Dn_JB07(PGA = 0.5, ky = 0.1)

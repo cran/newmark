@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_models.R
 \name{SaF_ST17}
 \alias{SaF_ST17}
-\title{Site-amplified spectral acceleration using Seyhan & Stewart (2014)}
+\title{Site-amplified spectral acceleration (2017 NGA-East generation)}
 \usage{
 SaF_ST17(Sa, pga, Tn, vs30, vref = 760)
 }
@@ -25,15 +25,16 @@ A \link[data.table]{data.table} with columns:
 \item{\code{ID}}{character string "ST17"}}
 }
 \description{
-Computes site-amplified spectral acceleration Sa_F using the Seyhan & Stewart (2014)
-non-linear site factor model. This is the canonical implementation that calls
-the underlying F_ST17() function.
+Computes site-amplified spectral acceleration Sa_F using the
+2017-generation NGA-East non-linear site factor model (PEER Report
+2017/05 lineage; see \code{\link{F_ST17}}). This wrapper calls the
+underlying F_ST17() function.
 }
 \section{References}{
 
-Seyhan, E. & Stewart, J.P. (2014) "Semi-empirical nonlinear site amplification
-from NGA-West2 data and simulations." \emph{Earthquake Spectra} \strong{30}(3):1241--1256.
-\doi{10.1193/063013EQS181M}
+Hashash, Y.M.A. et al. (2017) "Recommendation for Ergodic Nonlinear
+Site Amplification in Central and Eastern North America." PEER
+Report 2017/05, Pacific Earthquake Engineering Research Center.
 }
 
 \examples{

@@ -6,7 +6,6 @@
 #' (DOI 10.1193/1.2857544), Eqs. 5 and 6 verbatim.
 #'
 #' The model has no dependence on rupture distance or magnitude.
-#' \code{Rrup} is retained for signature compatibility and is silently ignored.
 #' Periods of zero are treated as 0.01 s (standard PGA proxy in B&J 2008).
 #'
 #' Form (Eqs. 5-6 of B&J 2008):
@@ -27,7 +26,6 @@
 #' @param T0   Numeric scalar. Reference period in seconds. Default 0.01
 #'   (used as a numerical proxy for PGA). Values <= 0 are silently
 #'   converted to 0.01.
-#' @param Rrup Numeric scalar. Not used; retained for backward compatibility.
 #'
 #' @return Numeric scalar correlation coefficient rho(T0, Tn).
 #'
@@ -41,7 +39,7 @@
 #' DOI: 10.1193/1.2857544.
 #'
 #' @export
-rhoBJ <- function(Tn, T0 = 0.01, Rrup = 100) {
+rhoBJ <- function(Tn, T0 = 0.01) {
   if (T0 <= 0) T0 <- 0.01
   if (Tn <= 0) Tn <- 0.01
   stopifnot(length(Tn) == 1L, length(T0) == 1L)

@@ -520,12 +520,12 @@ bidirectionally with the equivalent <em>V</em>_S30:</p>
 </tr>
 <tr class="even">
 <td>B</td>
-<td>900 – 1500</td>
+<td>910 – 1500</td>
 <td align="right">1200</td>
 </tr>
 <tr class="odd">
 <td>BC</td>
-<td>640 – 900</td>
+<td>640 – 910</td>
 <td align="right">760</td>
 </tr>
 <tr class="even">
@@ -557,6 +557,42 @@ bidirectionally with the equivalent <em>V</em>_S30:</p>
 </table>
 <hr />
 </div>
+<div id="site-amplification-models" class="section level2">
+<h2>Site amplification models</h2>
+<p>Rock-to-site amplification of spectral ordinates uses the NGA-East
+ergodic site-response family, selected with the <code>models</code>
+argument of <code>fitSaF()</code> and <code>fitSaFMixture()</code>:</p>
+<ul>
+<li><strong><code>&quot;ST20&quot;</code></strong> (default) — the final published
+generation: linear model and F760 impedance/gradient weighting per
+Stewart et al. (2020), nonlinear model per Hashash et al. (2020) with a
+period-dependent nonlinear reference velocity (760 m/s below 0.4 s, 3000
+m/s above) and a PGA-dependent nonlinear sigma. Coefficients are
+regenerated from the USGS nshmp-lib machine-readable table.</li>
+<li><strong><code>&quot;ST17&quot;</code></strong> — the 2017 PEER-report
+generation (PEER Report 2017/05), retained for backward comparison with
+earlier studies.</li>
+</ul>
+<p>Both models are referenced to very hard rock
+(<em>V</em><sub>S30</sub> = 3000 m/s). With <code>vref = 760</code> (the
+usual reference-rock hazard condition) the reported mean factor is the
+exact difference of the composite model, ln <em>F</em> =
+<em>F</em>(<em>V</em><sub>S30</sub>) − <em>F</em>(760), and the input
+PGA is converted to the 3000 m/s anchor with the PEER 2017/05 factor
+<em>PGA</em><sub>3000</sub> = <em>PGA</em><sub>760</sub>/2.275. The
+dispersion σ<sub>ln F</sub> is evaluated at the target
+<em>V</em><sub>S30</sub> only: the reference-rock hazard already carries
+its own dispersion, so no reference-side sigma is added. At
+<code>vs30 == vref</code> the factor is deterministically 1 (zero
+dispersion).</p>
+<p>When the rock hazard is available as an analytic lognormal mixture
+(one component per rupture-variant and ground-motion-model branch, as
+produced by deterministic scenario engines),
+<code>fitSaFMixture()</code> composes the mixture with the site-factor
+lognormal exactly — Gauss–Hermite quadrature over the PGA channel and
+monotone inversion of the pooled distribution — with no Monte Carlo
+sampling; results are reproducible byte-for-byte.</p>
+</div>
 <div id="application" class="section level2">
 <h2>Application</h2>
 <p>Most TSF and waste-rock dump assessments call
@@ -577,8 +613,13 @@ see <code>?fitSaF</code> and the methodology in
 <ul>
 <li>Gazetas, G. &amp; Dakoulas, P. (1985). <em>Soil Dyn. Earthq.
 Eng.</em> 4(4):166–182.</li>
+<li>Hashash, Y.M.A. et al. (2017). <em>Recommendation for Ergodic
+Nonlinear Site Amplification in Central and Eastern North America</em>.
+PEER Report 2017/05.</li>
+<li>Hashash, Y.M.A. et al. (2020). <em>Earthquake Spectra</em> 36(1). <a href="doi:10.1177/8755293019878193" class="uri">doi:10.1177/8755293019878193</a>.</li>
 <li>Ishihara, K. (1996). <em>Soil Behaviour in Earthquake
 Geotechnics</em>. Oxford University Press.</li>
+<li>Stewart, J.P. et al. (2020). <em>Earthquake Spectra</em> 36(1). <a href="doi:10.1177/8755293019878185" class="uri">doi:10.1177/8755293019878185</a>.</li>
 <li>ASCE/SEI 7-22 (2022). <em>Minimum Design Loads and Associated
 Criteria for Buildings and Other Structures</em>. American Society of
 Civil Engineers.</li>

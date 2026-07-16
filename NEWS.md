@@ -1,3 +1,161 @@
+# newmark 1.3.0
+
+## Model corrections (audit-driven; change numerical results)
+
+* `designUHS()` now derives the spectral parameters per ASCE 7-22
+  Sec. 21.4 (site-specific input): at MCER level,
+  `SMS = 0.9 * max SaM(T)` over `T` in [0.2, 5] s and
+  `SM1 = max(0.9 * max[T * SaM(T)], SaM(1 s))` over [1, 2] s when
+  `vs30 > 442` m/s, else [1, 5] s (new optional `vs30` argument;
+  `NULL` uses the conservative wide window). The previous seeding
+  (`Ss = Sa(0.2 s)`, `S1 = Sa(1.0 s)`, `Fa = Fv = 1`) matched no
+  ASCE 7-22 pathway for site-specific spectra. ASCE-table products
+  shift on the order of 10 percent. The Sec. 21.2.3 floor and the
+  Sec. 21.2.2 deterministic cap remain out of scope (documented).
+
+## Fixes
+
+* `designUHS()`: the output grid beyond `TL` was degenerate whenever
+  `TL >= 5` (including the default 8 s), so the long-period branch
+  (ASCE 7-22 Eq. 11.4-5) never appeared in the returned table; the
+  grid now samples one octave beyond `TL`. Documentation now states
+  precisely which parts of ASCE 7-22 the function implements (the
+  Sec. 21.4 derivation and Sec. 11.4.5.2 two-period shape) and which
+  it does not (the Sec. 21.2 floor and deterministic cap).
+
+## Breaking changes
+
+* The dead `Rrup` argument has been REMOVED from `rhoBJ()`, `fitSaF()`,
+  `fitDnCurve()`, and `fitDnModel()`, and from the `fitDnScenario()`
+  records contract (a legacy `Rrup` column in `records` is tolerated
+  and ignored). The Baker & Jayaram (2008) inter-period correlation
+  model has no distance dependence, so the argument never influenced
+  any result: outputs are identical draw-for-draw under the same seed.
+  Callers passing `Rrup` by position or by name must drop it.
+
+# newmark 1.2.1
+
+## Model corrections (audit-driven; change numerical results)
+
+* `Dn_BT07()`: restored the published `+ 1.50 * Ts` term of
+  Bray & Travasarou (2007) Eq. 5, previously missing (the function
+  received `Ts` but never used it), and the `-0.22` intercept for
+  nearly rigid sliding masses (`Ts < 0.05` s). The implementation now
+  reproduces the worked example published by Bray (2007). Median
+  displacements increase by `exp(1.5 * Ts)` (about x2.1 at
+  `Ts = 0.5` s).
+
+* `geSiteTable()` / `getSiteProperties()`: the Shibata-Soelarno (1975)
+  row of the Ishihara (1996) shear-modulus table now uses its
+  published LINEAR void-ratio form `F(e) = Ce - e/(1 + e)`; the
+  quadratic form of the other models had been applied to it,
+  under-predicting that model by a factor of about 65 and dragging the
+  Sands-group mean modulus down (about -20 percent in `Go` for typical
+  sand profiles).
+
+* `fitModel.Ts()`: rebuilt on the classical Rayleigh quotient with the
+  static-deflection trial shape. The previous trial shape violated the
+  base boundary condition under package usage and overestimated the
+  fundamental period of normal (stiffness-increasing) profiles by tens
+  of percent (e.g. +44 percent on a 200/400 m/s two-layer column,
+  +27 percent on the vignette profile). The rebuilt estimator is
+  within -0.4 to -2.8 percent of the exact layered solution across
+  test profiles and is invariant to the layer ordering of the input.
+  All Ts-dependent products (site properties, flexible-block
+  displacements) shift on regeneration.
+
+* `Vs30toSID()`: the class-B lower bound is now 910 m/s (3000 ft/s,
+  ASCE 7-22 Table 20.2-1), matching the packaged `SiteClass` table;
+  it was 900. The class-E row in `SiteClass` now prints the
+  correct inequality (`<150` m/s).
+
+## Behaviour changes
+
+* `Dn_BM19()` (and `fitDnCurve()`, `fitDnModel()`): near-fault pulse
+  behaviour is now selected with the explicit `pulse` argument
+  (default `FALSE` = ordinary motion), matching the papers' definition
+  of pulse as a declared property of the record and the authors'
+  spreadsheet. The automatic `PGV > 115` cm/s switch is retired; PGV
+  remains a required predictor inside the pulse equations, whose
+  published 150 cm/s sub-regime is unchanged.
+
+# newmark 1.2.0
+
+## New functions
+
+* `F_ST20()` implements the final 2020 NGA-East ergodic site-amplification
+  generation (Stewart et al. 2020 linear model and F760 impedance/gradient
+  weighting; Hashash et al. 2020 nonlinear model with period-dependent
+  reference velocity and PGA-dependent nonlinear sigma). Coefficients are
+  regenerated from the USGS nshmp-lib machine-readable table
+  (`data-raw/SiteAmp2020.R`); the implementation is validated at machine
+  precision against the OpenQuake `nga_east.py` reference functions.
+
+* `fitSaFMixture()` computes site-amplified spectra from an analytic
+  scenario mixture (one lognormal component per rupture-variant x GMPE
+  branch, as produced by the DSHA scenario engine). The composition of the
+  rock mixture with the lognormal site dispersion is exact: Gauss-Hermite
+  quadrature over the PGA channel plus monotone mixture-CDF inversion. No
+  random numbers are drawn - outputs are byte-stable; `Sa` and `SaF` are
+  quantiles of the same conditional demand distribution and
+  `AF = SaF / Sa` is the amplification of the p-quantile.
+
+## Behaviour changes
+
+* `fitSaF()` gains a working `models` menu: `"ST20"` (new default) and
+  `"ST17"`. Pass `models = "ST17"` to reproduce the 2017-generation
+  amplification.
+
+* `F_ST17()` sigma corrected: the nonlinear component now applies the
+  PGA-dependent multiplier of its source model
+  (`sigma_Fnl = sigma_f2 * ln((PGA_3000 + f3)/f3)`, PEER 2017/05 Eq. 2.5
+  as implemented by USGS nshmp-lib and OpenQuake). Earlier versions used
+  bare `sigma_f2`, overstating dispersion at low PGA and understating it
+  at high PGA. `muLnF` is unchanged; `sdLnF` now varies with PGA.
+
+## Documentation
+
+* Corrected provenance: the `F_ST17()` family implements the PEER Report
+  2017/05 NGA-East recommendations (not Seyhan & Stewart 2014 as
+  previously documented). The inter-period correlation model is
+  Baker & Jayaram (2008); it has no distance dependence and the `Rrup`
+  arguments are retained for backward compatibility only.
+
+# newmark 1.1.1
+
+## New functions
+
+* `fitDnScenario()` fits the Newmark displacement curve and Monte Carlo draws
+  for a single scenario row (one `(TR, IDg)` combination). Returns a list with
+  `curve` and `draws` data.tables matching the contract of `fitDnCurve()`.
+
+* `fitDnScenarios()` applies `fitDnScenario()` over a `records` data.table of
+  scenario rows and row-binds the results. Accepts `useParallel` and `workers`
+  arguments for fork-based parallel execution on multi-core systems.
+
+* `fitKmaxScenario()` fits the seismic coefficient kmax for a single scenario
+  row given pre-computed displacement draws and model weights. Returns a
+  data.table with `Da`, `p`, `kmax`, `PGA`, `Kh`, `TR`, `IDg`, and `IDn`.
+
+* `fitKmaxScenarios()` applies `fitKmaxScenario()` over a `records`
+  data.table and row-binds the results. Supports the same `useParallel` /
+  `workers` interface as `fitDnScenarios()`.
+
+## Performance
+
+* `fitDnScenarios()` now runs Dn scenario rows in parallel when
+  `useParallel = TRUE` and `workers > 1L`. On systems where fork-based
+  parallelism is available (Linux, macOS), wall time scales nearly linearly
+  with `workers` for large scenario grids. Sequential execution (the default)
+  is unchanged.
+
+## Internal tooling
+
+* `inst/cran-release.R` simplified to a two-phase `source()` from the
+  garage canonical scripts (`cran-check.R` then `cran-submit.R`). The
+  prior inline copy of those steps is removed; the garage copy is the
+  single source of truth.
+
 # newmark 1.1.0
 
 ## Bug fixes

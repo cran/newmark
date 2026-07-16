@@ -35,7 +35,7 @@ Vs30toSID <- function(Vs30) {
 .Vs30toSID_char <- function(v) { # nolint: object_name_linter.
   if (v >= 1500) {
     "A"
-  } else if (v >= 900) {
+  } else if (v >= 910) { # 3000 ft/s, ASCE 7-22 Table 20.2-1
     "B"
   } else if (v >= 640) {
     "BC"

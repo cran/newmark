@@ -1,17 +1,22 @@
-#' Site-amplified AUXtral acceleration (Seyhan & Stewart 2014)
+#' Site-amplified spectral acceleration (NGA-East site-response models)
 #'
-#' Computes site-amplified AUXtral acceleration using two modes:
+#' Computes site-amplified spectral acceleration using two modes:
 #' (A) If the input UHS contains only p == "mean", rock Sa is treated as
-#'     deterministic and the dispersion in SaF comes solely from F_ST17
-#'     (sdLnF), sampled on the natural-log scale.
+#'     deterministic and the dispersion in SaF comes solely from the
+#'     site-response model (sdLnF), sampled on the natural-log scale.
 #' (B) If the input UHS contains numeric quantiles (e.g., "0.10", "0.50", ...),
 #'     ln Sa(Tn) is sampled from those quantiles using an empirical inverse
 #'     quantile function (buildQSpline). Dependence between PGA and Sa(Tn)
-#'     is represented by a Gaussian "star" copula (Baker & Jayaram, 2009)
-#'     with correlation rhoBJ(Tn, T0 = 0, Rrup). For each Monte Carlo draw,
-#'     F_ST17 is evaluated with the paired PGA draw, and ln SaF = ln Sa + ln F
-#'     with ln F ~ Normal(muLnF, sdLnF). Independence between ln Sa and ln F
-#'     is assumed.
+#'     is represented by a per-period Gaussian "star" copula with the
+#'     Baker & Jayaram (2008) correlation rhoBJ(Tn, T0 = 0), which has
+#'     no distance dependence. For each Monte Carlo draw, the
+#'     site-response model is evaluated with the paired PGA draw, and
+#'     ln SaF = ln Sa + ln F with ln F ~ Normal(muLnF, sdLnF).
+#'     Independence between ln Sa and ln F is assumed. Each sampled
+#'     vector is re-centered to the tabulated mean of its marginal.
+#'
+#' For scenario (DSHA) tables with analytic mixture components available,
+#' prefer \code{\link{fitSaFMixture}} (exact, sampling-free).
 #'
 #' Requirements:
 #' - The input table must have columns Tn, p, Sa.
@@ -25,10 +30,10 @@
 #' @param vs30      target Vs30 (m/s).
 #' @param vref      reference Vs30 (m/s), default 760.
 #' @param ns        Monte Carlo size (default 1000).
-#' @param models    character. Site-response model id. Currently the only
-#'                  implemented model is \code{"ST17"}; reserved for future
-#'                  site-response models.
-#' @param Rrup      rupture distance (km) for rhoBJ() in the quantile case (default 100).
+#' @param models    character. Site-response model id: \code{"ST20"}
+#'                  (default; Stewart/Hashash 2020 NGA-East generation, see
+#'                  \code{\link{F_ST20}}) or \code{"ST17"} (PEER 2017/05
+#'                  generation, see \code{\link{F_ST17}}).
 #' @param p_TARGET  probabilities to report when only 'mean' is provided,
 #'                  default c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95).
 #'
@@ -44,22 +49,23 @@ fitSaF <- function(uhs,
                    vs30,
                    vref = 760,
                    ns = 1000,
-                   models = "ST17",
-                   Rrup = 100,
+                   models = "ST20",
                    p_TARGET = c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)) {
 
+  FSite <- switch(models, ST20 = F_ST20, ST17 = F_ST17,
+                  stop("fitSaF: unknown site-response model: ", models))
   stopifnot(data.table::is.data.table(uhs))
   if (!all(c("Tn", "p", "Sa") %in% names(uhs))) {
     stop("fitSaF: 'uhs' must have columns Tn, p, Sa")
   }
 
-  ## PGA (roca, media única)
+  ## PGA (roca, media unica)
   PGA <- uhs[Tn == 0 & p == "mean", Sa]
   if (length(PGA) != 1L) {
     stop("fitSaF: need exactly one (Tn == 0, p == 'mean') row for PGA")
   }
 
-  ## Detección del tipo de entrada (ramificación única)
+  ## Deteccion del tipo de entrada (ramificacion unica)
   PNumAll <- suppressWarnings(as.numeric(uhs$p))
   HaveQuantiles <- any(!is.na(PNumAll) & PNumAll > 0 & PNumAll < 1)
 
@@ -68,14 +74,14 @@ fitSaF <- function(uhs,
                                 Sa = numeric(0), SaF = numeric(0))
 
   if (!HaveQuantiles) {
-    # ---------------------- (A) sólo p == "mean" -----------------------
+    # ---------------------- (A) solo p == "mean" -----------------------
     for (t in Tn) {
       Sa <- uhs[Tn == t & p == "mean", Sa]
       if (length(Sa) != 1L) {
         next  # Manejar Tns sin datos
       }
 
-      AUX  <- F_ST17(PGA = PGA, Tn = t, vs30 = vs30, vref = vref)
+      AUX  <- FSite(PGA = PGA, Tn = t, vs30 = vs30, vref = vref)
       muLnF <- AUX$muLnF
       sdLnF <- AUX$sdLnF
 
@@ -100,8 +106,8 @@ fitSaF <- function(uhs,
     }
 
   } else {
-    # ---------------------- (B) hay cuantiles numéricos -----------------
-    ## Preparar el muestreo de PGA una única vez
+    # ---------------------- (B) hay cuantiles numericos -----------------
+    ## Preparar el muestreo de PGA una unica vez
     DP0 <- uhs[Tn == 0]
     p0  <- suppressWarnings(as.numeric(DP0$p))
     id0 <- which(!is.na(p0) & p0 > 0 & p0 < 1)
@@ -116,29 +122,29 @@ fitSaF <- function(uhs,
         next  # Manejar Tns sin datos
       }
 
-      ## inverso empírico en ln‑espacio para Sa(Tn)
+      ## inverso empirico en ln-espacio para Sa(Tn)
       PNum <- suppressWarnings(as.numeric(DT$p))
       idx  <- which(!is.na(PNum) & PNum > 0 & PNum < 1)
       DTn <- DT[idx, .(p = as.numeric(p), Sa)]
       DTn <- DTn[order(p)]
       LnQn <- buildQSpline(DTn)  # u in (0,1) -> ln Sa(Tn)
 
-      ## cópula gaussiana “estrella” PGA–Sa(Tn)
-      rho <- rhoBJ(Tn = t, T0 = 0, Rrup = Rrup)
+      ## copula gaussiana "estrella" PGA-Sa(Tn)
+      rho <- rhoBJ(Tn = t, T0 = 0)
       Sig <- matrix(c(1, rho, rho, 1), nrow = 2L)
       Z2  <- mvtnorm::rmvnorm(ns, sigma = Sig)  # (Z0, Zn)
       U0  <- stats::pnorm(Z2[, 1L])
       U1  <- stats::pnorm(Z2[, 2L])
 
-      ## mapeo a ln‑marginales y recentering
+      ## mapeo a ln-marginales y recentering
       LnPGASample <- LnQ0(U0)
       LnPGASample <- log(exp(LnPGASample) * (PGA / mean(exp(LnPGASample))))
 
       LnSaSample  <- LnQn(U1)
       LnSaSample  <- log(exp(LnSaSample) * (Sa / mean(exp(LnSaSample))))
 
-      ## ST17 con PGA por muestreo
-      AUX <- F_ST17(PGA = exp(LnPGASample), Tn = t, vs30 = vs30, vref = vref)
+      ## modelo de sitio con PGA por muestreo
+      AUX <- FSite(PGA = exp(LnPGASample), Tn = t, vs30 = vs30, vref = vref)
       LnFSample <- stats::rnorm(ns, mean = AUX$muLnF, sd = AUX$sdLnF)
       lnSaF <- LnSaSample + LnFSample
 
