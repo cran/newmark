@@ -1,0 +1,89 @@
+#' Global displacement products of release 1.7.1
+#'
+#' Compatibility route that reproduces, value for value, the global
+#' `DnTable` and `DnPlotTable` that the dn step of `newmark` 1.7.1 assembles
+#' from the site `DnTable` products of [buildDnTables()], for comparison with
+#' the installed library.
+#'
+#' @section Semantics reproduced from `newmark` 1.7.1:
+#' Every site table is checked against the product contract and the shear
+#' table, the tables are stacked and keyed by `siteID`, `ID`, `TR`, `IDg`,
+#' `IDm`, `IDn`, `p` and `ky`. The plot table averages the material curves
+#' of each site, demand, geometry, model and level on a common grid: rows
+#' with \eqn{D_n \le 10^{-4}} cm are dropped; the grid has
+#' \eqn{N = \max(2, \mathrm{round}(\mathrm{median}_m\, n_m))} points
+#' log-spaced between the smallest and largest remaining \eqn{k_y}, where
+#' \eqn{n_m} counts the distinct \eqn{k_y} of material \eqn{m}; each
+#' material curve is interpolated linearly in \eqn{(\ln k_y, \ln D_n)}
+#' without extrapolation (`stats::approx`, `rule = 1`, ties averaged), the
+#' finite values are averaged arithmetically over materials, and the points
+#' at or below \eqn{10^{-4}} cm are dropped again. It is a display product:
+#' the average over materials has no probabilistic meaning of its own.
+#'
+#' @param tables Named list of site `DnTable` products, one per site
+#'   identifier.
+#' @param shear,weights,modelID,TR,Vref As for [buildDnTables()].
+#' @return A list with the keyed data.tables `DnTable` (all sites) and
+#'   `DnPlotTable` (`siteID`, `ID`, `TR`, `IDg`, `IDn`, `p`, `ky` in g and
+#'   `Dn` in cm, keyed by the first seven). The site tables are not
+#'   modified.
+#' @export
+#' @examples
+#' \donttest{
+#' # The inputs of the product test of newmark 1.7.1: one rock lognormal per
+#' # period, its MCE quantiles and two geometry-material pairs.
+#' Rock <- data.table::data.table(ID = "TEST", siteID = "TST", TR = 100, Tn = c(0, 0.2, 1),
+#'                                Sa = c(0.3, 0.45, 0.24), Vs30 = 760, Vref = 760)
+#' Rock[, `:=`(SaF = Sa, AF = NA_real_, k = "oq", muLn = log(Sa) - 0.4^2 / 2, sigmaLn = 0.4,
+#'             w = 1, fitErr = 0)]
+#' Levels <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
+#' MCE <- Rock[, .(p = c(sprintf("%.2f", Levels), "mean"),
+#'                 Sa = c(exp(muLn + 0.4 * qnorm(Levels)), Sa)), by = Tn]
+#' MCE[, `:=`(ID = "MCE", siteID = "TST", Vs30 = 760, Vref = 760)]
+#' Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), VS30 = c(360, 560),
+#'                                 Ts = 0.3, Vref = 760, level = "mean")
+#' Site <- buildDnTables(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
+#'                       Mw = 7, NS = 2, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3, workers = 1)
+#' Global <- assembleDnTables(list(TST = Site$DnTable), shear = Shear, weights = c(AM88 = 1, BM19 = 1),
+#'                            modelID = "TEST", TR = 100, Vref = 760)
+#' Global$DnPlotTable
+#' }
+assembleDnTables <- function(tables, shear, weights, modelID, TR, Vref) {
+  IDs <- names(tables)
+  if (!is.list(tables) || !length(tables) || is.null(IDs) || anyDuplicated(IDs) ||
+      !all(vapply(IDs, .isName, logical(1L)))) {
+    stop("tables must be a named list with unique site identifiers")
+  }
+  Shear <- .checkDnShear(shear, Vref)
+  DT <- rbindlist(lapply(IDs, function(siteID) {
+    .checkDnTable(copy(as.data.table(tables[[siteID]])), Shear, siteID, weights, modelID, TR)
+  }))
+  setkeyv(DT, DNKEY)
+  list(DnTable = DT, DnPlotTable = .buildDnPlotTable(DT))
+}
+
+# Material-averaged curves on a common log grid per site, demand, geometry,
+# model and level, for display.
+.buildDnPlotTable <- function(DT) {
+  KEY <- c("siteID", "ID", "TR", "IDg", "IDn", "p")
+  OUT <- DT[Dn > DNPLOTMIN, {
+    N <- max(2L, as.integer(round(stats::median(.SD[, uniqueN(ky), by = IDm]$V1))))
+    X <- exp(seq(log(min(ky)), log(max(ky)), length.out = N))
+    .SD[, {
+      OK <- is.finite(ky) & is.finite(Dn) & ky > 0 & Dn > 0
+      if (sum(OK) < 2L) {
+        data.table(ky = numeric(), Dn = numeric())
+      } else {
+        ORDER <- order(ky[OK])
+        data.table(ky = X, Dn = exp(stats::approx(log(ky[OK][ORDER]), log(Dn[OK][ORDER]), log(X),
+                                                  rule = 1, ties = mean)$y))
+      }
+    }, by = IDm][is.finite(Dn), .(Dn = mean(Dn)), by = ky]
+  }, by = KEY]
+  OUT <- OUT[Dn > DNPLOTMIN]
+  setkeyv(OUT, c(KEY, "ky"))
+  OUT
+}
+
+# Displacements at or below this value (cm) are left out of the plot table.
+DNPLOTMIN <- 1e-4

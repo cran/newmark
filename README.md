@@ -1,94 +1,39 @@
 # newmark
 
-<!-- badges: start -->
-[![R Version](https://img.shields.io/badge/R-%3E%3D%204.2.0-blue)](https://www.r-project.org/)
-[![CRAN status](https://www.r-pkg.org/badges/version/newmark)](https://CRAN.R-project.org/package=newmark)
-[![CRAN downloads](https://cranlogs.r-pkg.org/badges/newmark)](https://CRAN.R-project.org/package=newmark)
-<!-- badges: end -->
+`newmark` is an R package for uncertainty analysis in dynamic site and slope
+response. The fundamental period of a layered soil column, which describes its
+free, undamped horizontal shear vibration on rigid rock, is approximated by the
+first Rayleigh iteration in layered form and by a finite element eigenvalue
+problem. Uniform hazard spectra are evaluated from seismic hazard curves, which
+give the mean annual frequency with which a ground-motion intensity level is
+exceeded at a site. The site-response model transforms spectral acceleration at
+a reference condition into spectral acceleration at a target site condition
+described by `VS30`, through a random amplification factor that is lognormal at
+fixed period, velocities and reference peak ground acceleration. Permanent
+seismic displacement measures the accumulated movement of a sliding mass during
+an earthquake. For fixed model inputs, rigid-block and flexible-block
+regressions represent the positive displacement by a lognormal distribution,
+and at a fixed yield coefficient an ensemble pools the realizations of its
+models with normalized weights. The yield coefficient `kmax` for an admissible
+displacement `Da` is the infimum of the positive yield coefficients at which
+the probability that the projected, non-increasing displacement curve exceeds
+`Da` is at most a target exceedance probability. A project stores
+soil-property summaries, seismic displacement realizations and their
+summaries, and yield coefficients associated with admissible displacements in
+the tables `ShearTable`, `DnDraws`, `DnTable` and `kmaxTable`.
 
-## Overview
+| Family | Article |
+| --- | --- |
+| `soil` | [Fundamental period of a layered soil column: Rayleigh approximations and numerical solution](https://kanameishi.github.io/newmark/articles/soil.html) |
+| `hazard` | [Uniform hazard spectra from seismic hazard curves](https://kanameishi.github.io/newmark/articles/hazard.html) |
+| `siteResponse` | [Conditional spectral acceleration under site amplification](https://kanameishi.github.io/newmark/articles/site-response.html) |
+| `displacement` | [Distribution of permanent seismic displacement in a model ensemble](https://kanameishi.github.io/newmark/articles/displacement.html) |
+| `kmax` | [Yield coefficient for an admissible seismic displacement](https://kanameishi.github.io/newmark/articles/kmax.html) |
+| `project` | [Generation and querying of project tables](https://kanameishi.github.io/newmark/articles/project.html) |
+| `meta` | [Installed module identity](https://kanameishi.github.io/newmark/articles/module-identity.html) |
 
-The package implements probabilistic propagation of seismic hazard
-uncertainty through the Newmark sliding-block displacement framework.
-Two stages of variability — the joint distribution of rock-level
-spectral demand from PSHA quantiles, and the conditional dispersion
-of empirical site-amplification and sliding-block models — are
-sampled via Gaussian copulas with mean-preserving recentering, and
-propagated to the mean, dispersion and design quantiles of the
-residual displacement Dn(ky) and the performance-based seismic
-coefficient kmax(d*).
+The reference, [Functions and data](https://kanameishi.github.io/newmark/reference/index.html), groups the functions
+by the same families and lists the data sets.
 
-Inputs are uniform-hazard spectra (UHS) at multiple return periods,
-produced by any external PSHA engine.
-Outputs are tabulated kmax(d*) and the normalised pseudostatic
-coefficient Kh = kmax / PGA at user-specified displacement targets,
-intended for performance-based seismic stability of slopes,
-embankments, tailings storage facilities and waste rock dumps.
-
-## Installation
-
-```r
-# Stable release
-install.packages("newmark")
-
-# Development version
-devtools::install_github("averriK/newmark")
-```
-
-## Getting started
-
-Four vignettes ship with the package:
-
-```r
-vignette("newmark-quickstart",     package = "newmark")    # runnable hello world
-vignette("pipeline",               package = "newmark")    # function-level overview
-vignette("dynamic-site-response",  package = "newmark")    # Ts, stiffness profile, site amplification
-vignette("ensemble-formulation",   package = "newmark")    # mathematical derivation
-```
-
-Function-level reference: `?fitSaF`, `?getDnKy`, `?fitDnCurve`,
-`?invertDnDraws`, `?getSiteProperties`, `?geSiteTable`,
-`?getCylinderRoots`, `?fitModel.Ts`, `?buildGMDP`, `?Vs30toSID`,
-`?SIDtoVs30`, or `help(package = "newmark")`.
-
-Rendered documentation: <https://averriK.github.io/newmark/>.
-
-## Getting help
-
-Open an issue at <https://averriK.github.io/newmark/>.
-
-## Citation
-
-If you use this package in a publication, please cite the companion paper:
-
-```bibtex
-@unpublished{VerriKozlowski2026,
-  author = {Verri Kozlowski, Alejandro},
-  title  = {Probabilistic estimation of {Newmark} displacements and seismic
-            coefficients under hazard uncertainty},
-  year   = {2026},
-  note   = {Working paper}
-}
-```
-
-To cite the software package itself:
-
-```bibtex
-@Manual{Verri2026,
-  title  = {{newmark}: Uncertainty Analysis in Dynamic Site and Slope Response},
-  author = {Verri Kozlowski, Alejandro},
-  year   = {2026},
-  note   = {R package version 1.1.0},
-  url    = {https://averriK.github.io/newmark/}
-}
-```
-
-## License
-
-MIT — see [LICENSE](LICENSE)
-
-## Author
-
-**Alejandro Verri Kozlowski** — averri@fi.uba.ar  
-[ORCID 0000-0002-8535-1170](https://orcid.org/0000-0002-8535-1170)  
-Universidad de Buenos Aires, Facultad de Ingeniería
+The library and the `newmark` command are installed together from the
+repository root with the product installer.
