@@ -36,7 +36,8 @@ test_that("propagateBeamPeriod solves the slope period of each realization from 
   for (i in 1:4) {
     Single <- solveWedgePeriod(Profiles$layers[[i]], Hs = 10, lo = 0.351, mo = Profiles$mo[i],
                                VSo = Profiles$VSo[i], method = "nlm", elements = 2)
-    expect_identical(OUT[i, names(Single), with = FALSE], Single)
+    # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+    expect_equal(OUT[i, names(Single), with = FALSE], Single)
   }
   # The analytic route takes the apex-to-base height Hs / (1 - lo), owner's
   # ruling of 2026-10-12.
@@ -77,7 +78,8 @@ test_that("propagateBeamPeriod trims the deepest sampled layer to Hs before the 
     Trimmed <- copy(Profiles$layers[[i]])[layer == 11L, hs := 0.5]
     Single <- solveWedgePeriod(Trimmed, Hs = 10.5, lo = 0.351, mo = Profiles$mo[i], VSo = Profiles$VSo[i],
                                method = "nlm", elements = 2)
-    expect_identical(OUT[i, names(Single), with = FALSE], Single)
+    # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+    expect_equal(OUT[i, names(Single), with = FALSE], Single)
   }
   # The analytic route keeps the Hs, mo and VSo of the row.
   expect_equal(OUT$TsAnalytic, 4 * pi * (10.5 / (1 - 0.351)) / (OUT$an * (2 - OUT$mo) * OUT$VSo))
@@ -86,7 +88,7 @@ test_that("propagateBeamPeriod trims the deepest sampled layer to Hs before the 
   expect_identical(Profiles$layers, Sampled)
   expect_identical(OUT$layers, Sampled)
   expect_identical(vapply(OUT$layers, function(L) sum(L$hs), numeric(1L)), rep(11, 3))
-  expect_identical(propagateSitePeriod(OUT)$Tr, propagateSitePeriod(Profiles)$Tr)
+  expect_equal(propagateSitePeriod(OUT)$Tr, propagateSitePeriod(Profiles)$Tr)
   # An excess not smaller than the deepest layer stops the call with its row.
   Shorter <- copy(Profiles)[2L, Hs := 10]
   expect_error(propagateBeamPeriod(Shorter, lo = 0.351, method = "nlm"),
@@ -101,7 +103,8 @@ test_that("propagateSitePeriod solves the site period of each realization from i
   # Each row is solveColumnPeriod on the layers of that realization with two
   # elements per layer (owner's setting of 2026-10-12).
   for (i in 1:3) {
-    expect_identical(OUT[i, .(Tr, TrMeshChange, TrRayleighWeighted, TrRayleighWeightedDifference)],
+    # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+    expect_equal(OUT[i, .(Tr, TrMeshChange, TrRayleighWeighted, TrRayleighWeightedDifference)],
                      solveColumnPeriod(Profiles$layers[[i]], elements = 2))
   }
   # The weighted Rayleigh estimate is bounded by the period within its mesh change.
@@ -111,10 +114,22 @@ test_that("propagateSitePeriod solves the site period of each realization from i
   expect_false("Tr" %in% names(Profiles))
   # The site and slope periods do not depend on the order of the two steps.
   Both <- propagateBeamPeriod(OUT, lo = 0.351, method = "nlm")
-  expect_identical(Both[, .(Tr, Ts, TsAnalytic)],
+  expect_equal(Both[, .(Tr, Ts, TsAnalytic)],
                    propagateSitePeriod(propagateBeamPeriod(Profiles, lo = 0.351, method = "nlm"))[, .(Tr, Ts, TsAnalytic)])
   expect_error(propagateSitePeriod(Profiles[, !"layers"]), "list column layers")
   Broken <- copy(Profiles)
   set(Broken, i = 3L, j = "layers", value = list(list(copy(Profiles$layers[[3]])[2, gsat := -1])))
   expect_error(propagateSitePeriod(Broken), "realization row 3: layers\\$gsat")
+})
+
+test_that("sampleSoilLayers counts the layers as the ceiling of the height over the thickness within floating-point rounding", {
+  set.seed(1)
+  # 2.1 / 0.3 is 7.000000000000001 in floating point; the column holds 7 layers.
+  expect_identical(nrow(sampleSoilLayers(Hs = 2.1, USCS = "ML", h = 0.3)), 7L)
+  expect_identical(nrow(sampleSoilLayers(Hs = 2.45, USCS = "ML", h = 0.1)), 25L)
+  expect_identical(nrow(sampleSoilLayers(Hs = 10, USCS = "ML", h = 1)), 10L)
+  # A remainder far above the rounding of the quotient keeps its layer.
+  expect_identical(nrow(sampleSoilLayers(Hs = 10.0000001, USCS = "ML", h = 1)), 11L)
+  expect_identical(nrow(sampleSoilLayers(Hs = 100.000001, USCS = "ML", h = 0.1)), 1001L)
+  expect_identical(nrow(sampleSoilLayers(Hs = 1e-10, USCS = "ML", h = 1)), 1L)
 })

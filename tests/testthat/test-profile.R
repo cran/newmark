@@ -115,3 +115,13 @@ test_that("characterizeProfile recovers an exact power-law stiffness profile", {
   expect_equal(OUT$Sands, 100)
   expect_identical(OUT$USCS, "SP")
 })
+
+test_that("a column of 0.1 m layers at 300 m/s is of class CD, as added in double", {
+  # The three hundred travel times add to 0.099999999999999908 s in double, so
+  # VS30 is 300.00000000000028 m/s, class CD; with the depths and travel times
+  # accumulated in long double they add to 0.10000000000000052 s and VS30 is
+  # 299.99999999999847 m/s, class D.
+  VS30 <- estimateVS30(hs = rep(0.1, 300L), VSm = rep(300, 300L), Vref = 760)
+  expect_gte(VS30, 300)
+  expect_identical(classifySite(VS30), "CD")
+})

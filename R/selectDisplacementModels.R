@@ -53,8 +53,8 @@ selectDisplacementModels <- function(switches, subduction) {
   if (length(Have) == 2L && switches[["BM17"]] == 1) {
     Off <- if (subduction) "BM19" else "BM17"
     switches[[Off]] <- 0
-    message(">> Dn models: subduction = ", subduction, " -> ", Off,
-            " off, ", setdiff(Pair, Off), " on")
+    .inform("moduleNote", "Dn models: subduction = ", subduction, " -> ", Off,
+            " off, ", setdiff(Pair, Off), " on", operation = "selectDisplacementModels")
   }
   Weights <- switches[switches > 0]
   if (!length(Weights)) {

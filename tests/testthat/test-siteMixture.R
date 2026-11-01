@@ -88,3 +88,13 @@ test_that("refineSiteMixture returns the rock mixture at the reference condition
   expect_error(refineSiteMixture(GMM, VS30 = 360, Vref = 760, model = "ST20", levels = 0.5,
                                  orders = c(8, 16), tolerance = 2e-3), "at least three")
 })
+
+test_that("the site weights of a period are normalized by their sum in double", {
+  # Ten rock components of weight 0.1 and the two nodes of order 2, of weight
+  # 0.5, give twenty weights of 0.05 at each period; they add to 1 + 2^-52 in
+  # double, and to 1 in long double, which would leave every weight at 0.05.
+  Mixture <- data.table::CJ(Tn = c(0, 1), k = sprintf("c%02d", 1:10))
+  Mixture[, `:=`(muLn = log(0.3), sigmaLn = 0.5, w = 0.1)]
+  OUT <- integrateSiteMixture(Mixture, VS30 = 360, Vref = 760, model = "ST20", order = 2)
+  expect_identical(OUT$w, rep(0.05 / (1 + 2^-52), 40L))
+})

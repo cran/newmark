@@ -3,7 +3,7 @@
   "operations": [
     {"name": "doctor", "function": "describeModule", "family": "meta", "route": "meta",
      "arguments": [],
-     "result": "object: package, version", "json": true, "random": "none", "effects": [],
+     "result": "object: schema, package, version, summary, checks", "json": true, "random": "none", "effects": [],
      "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
 
     {"name": "buildGeometry", "function": "buildGeometry", "family": "soil", "route": "general",
@@ -448,12 +448,17 @@
        {"name": "PGA", "kind": "number", "required": true}],
      "result": "table: IDn, kyMin, kyMax (g)", "json": true, "random": "none", "effects": [],
      "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
+    {"name": "listDisplacementFamilies", "function": "listDisplacementFamilies", "family": "displacement", "route": "general",
+     "arguments": [],
+     "result": "object: ensemble, rigid, flexible; the identifiers of the models of each family", "json": true, "random": "none", "effects": [],
+     "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
     {"name": "selectDisplacementModels", "function": "selectDisplacementModels", "family": "displacement", "route": "general",
      "arguments": [
        {"name": "switches", "kind": "named", "required": true},
        {"name": "subduction", "kind": "logical", "required": true}],
      "result": "object: the weights of the active models, named by model", "json": true, "random": "none", "effects": [],
      "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
+    {"name":"integrateDnHazard","function":"integrateDnHazard","family":"displacement","route":"general","arguments":[{"name":"curves","kind":"table","required":true,"columns":[{"name":"Tn","type":"double","null":false},{"name":"Sa","type":"double","null":false},{"name":"AEP","type":"double","null":false}]},{"name":"ky","kind":"number","required":true},{"name":"Ts","kind":"number","required":true},{"name":"VS30","kind":"number","required":true},{"name":"Vref","kind":"number","required":true},{"name":"Mw","kind":"number","required":true},{"name":"weights","kind":"named","required":true},{"name":"Da","kind":"number","required":true},{"name":"IT","kind":"number","required":true},{"name":"TR","kind":"number","required":true},{"name":"siteModel","kind":"text","required":true}],"result":"object: summary, models and conditional; AEP and Poisson POE on available support","json":true,"random":"none","effects":[],"interfaces":["R","CLI"],"acceptance":"install/acceptance.R"},
     {"name": "buildDnTables", "function": "buildDnTables", "family": "displacement", "route": "compatibility",
      "arguments": [
        {"name": "rock", "kind": "table", "required": true, "columns": [
@@ -478,7 +483,7 @@
        {"name": "siteID", "kind": "text", "required": true},
        {"name": "TR", "kind": "number", "required": true},
        {"name": "Vref", "kind": "number", "required": true},
-       {"name": "Mw", "kind": "number", "required": true},
+       {"name": "Mw", "kind": "numberOrNamed", "required": true},
        {"name": "NS", "kind": "integer", "required": true},
        {"name": "weights", "kind": "named", "required": true},
        {"name": "zTrunc", "kind": "number", "required": true},

@@ -112,3 +112,33 @@ test_that("the compatibility route rejects inputs outside the product contract",
   expect_error(buildDnTables(X$inputs$rock, X$inputs$MCE, X$inputs$shear, "TEST", "TST", 200, Vref = 760, Mw = 7, NS = 2L,
                              weights = c(AM88 = 1), zTrunc = 3, workers = 1L), "return periods")
 })
+
+test_that("a magnitude per demand gives each demand the rows of its magnitude given for every demand", {
+  X <- reference()$pairs
+  build <- function(Mw) {
+    buildDnTables(X$inputs$rock, X$inputs$MCE, X$inputs$shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
+                  Mw = Mw, NS = 2L, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3, workers = 1L)
+  }
+  Low <- build(6)
+  High <- build(7)
+  Both <- build(c(MCE = 7, `100` = 6))
+  for (Table in c("DnDraws", "DnTable")) {
+    # BM19 depends on the magnitude, so the two magnitudes give other rows.
+    expect_false(identical(Low[[Table]][ID == "TEST"], High[[Table]][ID == "TEST"]), info = Table)
+    expect_identical(Both[[Table]][ID == "TEST"], Low[[Table]][ID == "TEST"], info = Table)
+    expect_identical(Both[[Table]][ID == "MCE"], High[[Table]][ID == "MCE"], info = Table)
+  }
+})
+
+test_that("a magnitude per demand names each return period of TR, as it prints, and the MCE once", {
+  X <- reference()$pairs
+  # The magnitude is checked before the rock table, so TR need not match it.
+  Cases <- list(c(`100` = 6, MCE = 7), c(`100` = 6, `500` = 7), c(`100` = 6, `500` = 7, `1000` = 7, MCE = 7),
+                c(`100` = 6, `100` = 6, `500` = 7, MCE = 7), c(`1e+02` = 6, `500` = 7, MCE = 7), c(6, 7, 7),
+                c(`100` = 6, `500` = 0, MCE = 7), c(`100` = 6, `500` = NA, MCE = 7), "7")
+  for (Mw in Cases) {
+    expect_error(buildDnTables(X$inputs$rock, X$inputs$MCE, X$inputs$shear, "TEST", "TST", TR = c(500, 100), Vref = 760,
+                               Mw = Mw, NS = 2L, weights = c(AM88 = 1), zTrunc = 3, workers = 1L),
+                 "Mw must be one finite positive number or one per demand (each return period of TR and MCE)", fixed = TRUE)
+  }
+})

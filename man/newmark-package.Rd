@@ -4,25 +4,45 @@
 \name{newmark-package}
 \alias{newmark}
 \alias{newmark-package}
-\title{newmark: uncertainty analysis in dynamic site and slope response}
+\title{Uncertainty analysis in dynamic site and slope response}
 \description{
-The library is built around explicit scientific calculations
-whose results carry their representative value, their applicable quantiles
-or dispersion and the information needed to propagate uncertainty. The
-soil and dynamics family separates synthetic layer generation
-(\code{\link[=sampleSoilLayers]{sampleSoilLayers()}}) from the deterministic layer physics
-(\code{\link[=evaluateSoilLayers]{evaluateSoilLayers()}}), the profile characterization
-(\code{\link[=characterizeProfile]{characterizeProfile()}}, \code{\link[=estimateVS30]{estimateVS30()}}, \code{\link[=estimateRayleighPeriod]{estimateRayleighPeriod()}},
-\code{\link[=classifySite]{classifySite()}}), the characteristic roots of the truncated shear beam
-(\code{\link[=buildRootModel]{buildRootModel()}}, \code{\link[=evaluateRoot]{evaluateRoot()}}), the analytic modal periods of the
-truncated shear beam (\code{\link[=evaluateBeamPeriod]{evaluateBeamPeriod()}}) and the numerical fundamental
-periods of a layered soil profile and a truncated shear beam (\code{\link[=solveColumnPeriod]{solveColumnPeriod()}},
-\code{\link[=solveWedgePeriod]{solveWedgePeriod()}}, \code{\link[=solveProfilePeriods]{solveProfilePeriods()}}). \code{\link[=simulateSoilProfiles]{simulateSoilProfiles()}} retains every
-realization with its paired properties and layers; \code{\link[=propagateSitePeriod]{propagateSitePeriod()}}
-and \code{\link[=propagateBeamPeriod]{propagateBeamPeriod()}} solve the fundamental periods \code{Tr} and \code{Ts} of each
-realization before any summary, and \code{\link[=summarizeProfiles]{summarizeProfiles()}}
-reduces them to marginal statistics. \code{\link[=buildShearTable]{buildShearTable()}} reproduces the
-product of \code{newmark} 1.7.1 for comparison with the installed oracle.
+Estimates the seismic response of sites and slopes from the results of a
+seismic hazard analysis. Uncertainty in the soil profile and in the ground
+motion is represented by Monte Carlo samples, and every result is reported
+with its representative value, its applicable quantiles or dispersion, and
+the population or conditioning to which it refers. The exported functions
+form the families below.
+}
+\details{
+Soil profiles and their periods: \code{\link[=buildGeometry]{buildGeometry()}}, \code{\link[=sampleSoilLayers]{sampleSoilLayers()}},
+\code{\link[=evaluateSoilLayers]{evaluateSoilLayers()}}, \code{\link[=characterizeProfile]{characterizeProfile()}}, \code{\link[=estimateVS30]{estimateVS30()}},
+\code{\link[=classifySite]{classifySite()}}, \code{\link[=estimateRayleighPeriod]{estimateRayleighPeriod()}},
+\code{\link[=estimateWeightedRayleighPeriod]{estimateWeightedRayleighPeriod()}}, \code{\link[=buildRootModel]{buildRootModel()}}, \code{\link[=evaluateRoot]{evaluateRoot()}},
+\code{\link[=evaluateBeamPeriod]{evaluateBeamPeriod()}}, \code{\link[=solveColumnPeriod]{solveColumnPeriod()}}, \code{\link[=solveWedgePeriod]{solveWedgePeriod()}},
+\code{\link[=solveProfilePeriods]{solveProfilePeriods()}}, \code{\link[=simulateSoilProfiles]{simulateSoilProfiles()}}, \code{\link[=propagateBeamPeriod]{propagateBeamPeriod()}},
+\code{\link[=propagateSitePeriod]{propagateSitePeriod()}}, \code{\link[=summarizeProfiles]{summarizeProfiles()}}, \code{\link[=buildShearTable]{buildShearTable()}}.
+
+Hazard inputs: \code{\link[=readHazardWorkbook]{readHazardWorkbook()}}, \code{\link[=convertAEP]{convertAEP()}},
+\code{\link[=evaluateUniformHazard]{evaluateUniformHazard()}}.
+
+Site response: \code{\link[=evaluateSiteFactor]{evaluateSiteFactor()}}, \code{\link[=evaluateSiteSa]{evaluateSiteSa()}},
+\code{\link[=integrateSiteMixture]{integrateSiteMixture()}}, \code{\link[=summarizeMixture]{summarizeMixture()}}, \code{\link[=refineSiteMixture]{refineSiteMixture()}},
+\code{\link[=integrateSiteSpectrum]{integrateSiteSpectrum()}}, \code{\link[=refineSiteSpectrum]{refineSiteSpectrum()}}, \code{\link[=simulateSiteSpectrum]{simulateSiteSpectrum()}},
+\code{\link[=buildPGATable]{buildPGATable()}}.
+
+Earthquake-induced displacement: \code{\link[=correlateResiduals]{correlateResiduals()}},
+\code{\link[=buildQuantileSpline]{buildQuantileSpline()}}, \code{\link[=interpolateSpectrum]{interpolateSpectrum()}}, \code{\link[=sampleSpectra]{sampleSpectra()}},
+\code{\link[=sampleIntensities]{sampleIntensities()}}, \code{\link[=estimatePGV]{estimatePGV()}}, \code{\link[=estimateAI]{estimateAI()}}, \code{\link[=listDisplacementFamilies]{listDisplacementFamilies()}},
+\code{\link[=selectDisplacementModels]{selectDisplacementModels()}}, \code{\link[=buildKyGrid]{buildKyGrid()}}, \code{\link[=buildKyLimits]{buildKyLimits()}},
+\code{\link[=evaluateRigidDisplacement]{evaluateRigidDisplacement()}}, \code{\link[=evaluateFlexibleDisplacement]{evaluateFlexibleDisplacement()}},
+\code{\link[=evaluateDisplacements]{evaluateDisplacements()}}, \code{\link[=summarizeDisplacements]{summarizeDisplacements()}}, \code{\link[=summarizeEnsemble]{summarizeEnsemble()}},
+\code{\link[=integrateDnHazard]{integrateDnHazard()}}, \code{\link[=buildDnTables]{buildDnTables()}}, \code{\link[=assembleDnTables]{assembleDnTables()}}.
+
+Pseudostatic coefficient: \code{\link[=solveKmax]{solveKmax()}}, \code{\link[=summarizeKmax]{summarizeKmax()}},
+\code{\link[=buildKmaxTable]{buildKmaxTable()}}, \code{\link[=assembleKmaxTables]{assembleKmaxTables()}}.
+
+Projects: \code{\link[=processProject]{processProject()}}, \code{\link[=listProjectTables]{listProjectTables()}}, \code{\link[=queryProjectTable]{queryProjectTable()}},
+\code{\link[=describeModule]{describeModule()}}.
 }
 \seealso{
 Useful links:

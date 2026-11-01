@@ -38,6 +38,6 @@ test_that("site factor inputs outside the models fail explicitly", {
   expect_error(evaluateSiteFactor(0.1, 0.2, 300, 500, "ST20"), "760 or 3000")
   expect_error(evaluateSiteFactor(-0.1, 0.2, 300, 760, "ST20"), "non-negative")
   expect_error(evaluateSiteFactor(0.1, c(0.2, 0.3), 300, 760, "ST20"), "one finite")
-  expect_warning(evaluateSiteFactor(0.1, 12, 300, 760, "ST20"), "clamped to 10 s")
+  expect_warning(evaluateSiteFactor(0.1, 12, 300, 760, "ST20"), "^Tn = 12 s exceeds .* clamped to 10 s[.]$", class = "moduleWarning")
   expect_error(evaluateSiteSa(c(0.1, 0.2), 0.1, 0.2, 300, 760, "ST20"), "equal length")
 })

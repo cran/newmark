@@ -27,9 +27,10 @@ estimateVS30 <- function(hs, VSm, Vref) {
   if (!is.numeric(Vref) || length(Vref) != 1L || !is.finite(Vref) || Vref <= 0) {
     stop("Vref must be one finite positive velocity")
   }
-  ZTop <- c(0, head(cumsum(hs), -1))
+  hs <- as.double(hs)
+  ZTop <- c(0, head(Reduce(`+`, hs, accumulate = TRUE), -1))
   ZBot <- ZTop + hs
   t30 <- pmax(pmin(ZBot, 30) - ZTop, 0) / VSm
-  if (sum(hs) < 30) t30 <- c(t30, (30 - sum(hs)) / Vref)
-  30 / sum(t30)
+  if (Reduce(`+`, hs) < 30) t30 <- c(t30, (30 - Reduce(`+`, hs)) / Vref)
+  30 / Reduce(`+`, t30)
 }

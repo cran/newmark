@@ -151,7 +151,8 @@ test_that("a table with Gm and no VSm uses the velocities of evaluateSoilLayers"
   expect_equal(solveColumnPeriod(Moduli, elements = 4), solveColumnPeriod(Layers, elements = 4))
   # With both columns the velocities are used and the moduli ignored.
   Layers$Gm <- -1
-  expect_identical(solveColumnPeriod(Layers, elements = 4), solveColumnPeriod(Layers[, -5], elements = 4))
+  # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+  expect_equal(solveColumnPeriod(Layers, elements = 4), solveColumnPeriod(Layers[, -5], elements = 4))
 })
 
 test_that("degenerate layers and meshes are rejected with a diagnostic", {

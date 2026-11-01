@@ -25,10 +25,11 @@ test_that("random columns give finite positive periods within the declared mesh 
     expect_lte(OUT$TrRayleighWeightedDifference, OUT$TrMeshChange)
     # Invariance to the row order given the depths, and to the unit of gsat.
     Shuffled <- Layers[sample(nrow(Layers)), ]
-    expect_identical(solveColumnPeriod(Shuffled, elements = 4), OUT)
+    # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+    expect_equal(solveColumnPeriod(Shuffled, elements = 4), OUT)
     Heavier <- Layers
     Heavier$gsat <- 2 * Heavier$gsat
-    expect_identical(solveColumnPeriod(Heavier, elements = 4), OUT)
+    expect_equal(solveColumnPeriod(Heavier, elements = 4), OUT)
   }
 })
 
@@ -43,7 +44,8 @@ test_that("random wedges give finite positive periods within the declared mesh l
     expect_gte(OUT$TsMeshChange, 0)
     expect_lt(OUT$TsMeshChange, MESHLEVEL)
     Shuffled <- Layers[sample(nrow(Layers)), ]
-    expect_identical(solveWedgePeriod(Shuffled, Hs = sum(Layers$hs), lo = lo, mo = 0.5, VSo = 300,
+    # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+    expect_equal(solveWedgePeriod(Shuffled, Hs = sum(Layers$hs), lo = lo, mo = 0.5, VSo = 300,
                                       method = "exact", elements = 4), OUT)
   }
 })
@@ -59,17 +61,18 @@ test_that("solveProfilePeriods pairs every realization with its own inputs", {
     Single <- cbind(solveWedgePeriod(Profiles$layers[[i]], Hs = 10, lo = 0.351, mo = Profiles$mo[i],
                                      VSo = Profiles$VSo[i], method = "nlm", elements = 2),
                     solveColumnPeriod(Profiles$layers[[i]], elements = 2))
-    expect_identical(OUT[i], Single)
+    # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+    expect_equal(OUT[i], Single)
   }
   expect_true(all(OUT$TrRayleighWeightedDifference <= OUT$TrMeshChange))
   # The slope periods are those of the realization route on the same rows.
   Beam <- propagateBeamPeriod(Profiles, lo = 0.351, method = "nlm")
-  expect_identical(OUT[, .(Ts, TsMeshChange, TsAnalytic, TsAnalyticDifference)],
+  expect_equal(OUT[, .(Ts, TsMeshChange, TsAnalytic, TsAnalyticDifference)],
                    Beam[, .(Ts, TsMeshChange, TsAnalytic, TsAnalyticDifference)])
   # Heights and truncation ratios may differ by realization.
   Mixed <- solveProfilePeriods(Profiles$layers, Hs = c(10, 10, 10), lo = c(0, 0.351, 0.5), mo = Profiles$mo,
                                VSo = Profiles$VSo, method = "exact", elements = 2)
-  expect_identical(Mixed[3], cbind(solveWedgePeriod(Profiles$layers[[3]], Hs = 10, lo = 0.5, mo = Profiles$mo[3],
+  expect_equal(Mixed[3], cbind(solveWedgePeriod(Profiles$layers[[3]], Hs = 10, lo = 0.5, mo = Profiles$mo[3],
                                                     VSo = Profiles$VSo[3], method = "exact", elements = 2),
                                    solveColumnPeriod(Profiles$layers[[3]], elements = 2)))
   expect_error(solveProfilePeriods(Profiles$layers[[1]], Hs = 10, lo = 0.351, mo = 0.3, VSo = 200,

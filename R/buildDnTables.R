@@ -51,7 +51,8 @@
 #' @param TR Return periods of the probabilistic demand, in years.
 #' @param Vref Reference rock velocity in m/s; the product contract admits
 #'   only 760.
-#' @param Mw Moment magnitude of the scenarios.
+#' @param Mw Moment magnitude of the scenarios: one number for every demand, or a numeric vector
+#'   named by the return periods of `TR`, written as they print, and `MCE`.
 #' @param NS Realizations per geometry, material and demand.
 #' @param weights Named positive weights of the active models, for example
 #'   from [selectDisplacementModels()].
@@ -88,9 +89,9 @@
 #' }
 buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, weights, zTrunc, workers) {
   .checkDnArguments(modelID = modelID, siteID = siteID, TR = TR, Vref = Vref, NS = NS, weights = weights)
-  if (!is.numeric(Mw) || length(Mw) != 1L || !is.finite(Mw) || Mw <= 0 ||
-      !is.numeric(zTrunc) || length(zTrunc) != 1L || !is.finite(zTrunc) || zTrunc <= 0) {
-    stop("Mw and zTrunc must be finite positive scalars")
+  if (!.isMagnitude(Mw, TR)) stop("Mw must be one finite positive number or one per demand (each return period of TR and MCE)")
+  if (!is.numeric(zTrunc) || length(zTrunc) != 1L || !is.finite(zTrunc) || zTrunc <= 0) {
+    stop("zTrunc must be a finite positive scalar")
   }
   if (!is.numeric(workers) || length(workers) != 1L || !is.finite(workers) || workers < 1 ||
       workers != as.integer(workers)) {
@@ -105,7 +106,7 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
     Records <- .amplifyDemand(if (is.na(tr)) Mce else Rock[TR == tr, .(Tn, k, muLn, sigmaLn, w)],
                               shear = Shear, Vref = Vref, zTrunc = if (is.na(tr)) NA_real_ else zTrunc,
                               demandID = Demand, TR = tr)
-    .simulateDnDemand(Records, demandID = Demand, TR = tr, siteID = siteID, Mw = Mw, NS = as.integer(NS),
+    .simulateDnDemand(Records, demandID = Demand, TR = tr, siteID = siteID, Mw = .selectMagnitude(Mw, tr), NS = as.integer(NS),
                       weights = weights, seed = .seedDemand(siteID, Demand, tr), workers = as.integer(workers))
   })
   OUT <- list(DnDraws = rbindlist(lapply(LIST, `[[`, "DnDraws")),
@@ -136,7 +137,7 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
     Cell <- paste0("ID=", demandID, ", TR=", format(TR, scientific = FALSE), ", IDg=", shear$IDg[[i]],
                    ", IDm=", shear$IDm[[i]])
     .checkAmplified(Spectrum, IsAnalytic, Cell)
-    PGA <- if (IsAnalytic) .checkMixture(Spectrum)[Tn == 0, sum(w * exp(muLn + sigmaLn^2 / 2))] else Spectrum[Tn == min(Tn) & p == "mean", Sa]
+    PGA <- if (IsAnalytic) .checkMixture(Spectrum)[Tn == 0, Reduce(`+`, w * exp(muLn + sigmaLn^2 / 2))] else Spectrum[Tn == min(Tn) & p == "mean", Sa]
     if (length(PGA) != 1L) stop("site response has no single mean PGA for ", Cell)
     Ky <- buildKyGrid(PGA = PGA, n = 30L)
     if (anyDuplicated(Ky)) stop("the yield grid has repeated values for ", Cell)
@@ -275,12 +276,12 @@ DRAWCOLS <- c("IDg", "IDm", "ID", "TR", "ky", "s", "PGA.s", "IDn", "Dn", "siteID
 DRAWKEY <- c("siteID", "ID", "TR", "IDg", "IDm", "IDn", "s", "ky")
 DNTOL <- 1e-10
 
-.isName <- function(x) {
+.isIdentifier <- function(x) {
   is.character(x) && length(x) == 1L && !is.na(x) && grepl("^[A-Za-z][A-Za-z0-9_-]*$", x)
 }
 
 .checkDnArguments <- function(modelID, siteID, TR, Vref, NS, weights) {
-  if (!.isName(modelID) || !.isName(siteID)) stop("modelID and siteID must be valid identifiers")
+  if (!.isIdentifier(modelID) || !.isIdentifier(siteID)) stop("modelID and siteID must be valid identifiers")
   if (!is.numeric(Vref) || length(Vref) != 1L || is.na(Vref) || Vref != 760) stop("Vref must be 760 m/s")
   if (!is.numeric(TR) || !length(TR) || any(!is.finite(TR)) || any(TR <= 0)) {
     stop("TR must contain positive finite return periods")
@@ -413,7 +414,9 @@ DNTOL <- 1e-10
   }, logical(1L)))
 }
 
-.dnDemandsOK <- function(DT, modelID, TR) {
+# The demands of a product: the model with exactly `TR` and the MCE
+# with a missing return period.
+.hasDemands <- function(DT, modelID, TR) {
   setequal(unique(DT$ID), c(modelID, "MCE")) && setequal(unique(DT$TR[DT$ID == modelID]), TR) &&
     all(is.na(DT$TR[DT$ID == "MCE"]))
 }
@@ -423,7 +426,7 @@ DNTOL <- 1e-10
     stop("Invalid DnTable schema for siteID=", siteID, ". Expected: ", paste(DNCOLS, collapse = ", "),
          ". Found: ", paste(names(DT), collapse = ", "))
   }
-  if (!identical(unique(DT$siteID), siteID) || !.dnDemandsOK(DT, modelID, TR) || !setequal(unique(DT$p), DNLABELS)) {
+  if (!identical(unique(DT$siteID), siteID) || !.hasDemands(DT, modelID, TR) || !setequal(unique(DT$p), DNLABELS)) {
     stop("DnTable has invalid siteID, ID, TR, or p vocabulary for siteID=", siteID)
   }
   Families <- names(DNFAMILIES)[vapply(names(DNFAMILIES), function(x) length(.familyWeights(weights, x)) > 0L, logical(1L))]
@@ -456,7 +459,7 @@ DNTOL <- 1e-10
 
 .checkDnDraws <- function(DT, shear, siteID, weights, NS, modelID, TR) {
   if (!identical(names(DT), DRAWCOLS)) stop("Invalid DnDraws schema for siteID=", siteID)
-  if (!identical(unique(DT$siteID), siteID) || !.dnDemandsOK(DT, modelID, TR) ||
+  if (!identical(unique(DT$siteID), siteID) || !.hasDemands(DT, modelID, TR) ||
       !setequal(unique(DT$IDn), names(weights))) {
     stop("DnDraws has invalid siteID, ID, TR, or IDn vocabulary")
   }
@@ -478,4 +481,24 @@ DNTOL <- 1e-10
   }
   setkeyv(DT, DRAWKEY)
   invisible(DT)
+}
+
+# A demand is named by its return period as it prints, without exponent
+# ("10000"), and the MCE, whose TR is missing, by "MCE": the names of a
+# magnitude per demand, in Mw and in the Mw.gmdp of a contract.
+.nameDemands <- function(TR) {
+  vapply(TR, function(x) if (is.na(x)) "MCE" else format(x, scientific = FALSE, trim = TRUE), character(1L))
+}
+
+# One finite positive magnitude for every demand, or one for each demand of
+# TR and the MCE, named once each.
+.isMagnitude <- function(Mw, TR) {
+  is.numeric(Mw) && all(is.finite(Mw)) && all(Mw > 0) &&
+    (length(Mw) == 1L || (!anyDuplicated(names(Mw)) && setequal(names(Mw), .nameDemands(c(TR, NA)))))
+}
+
+# The magnitude of the demand of return period TR (NA for the MCE).
+.selectMagnitude <- function(Mw, TR) {
+  if (length(Mw) == 1L) return(Mw)
+  Mw[[.nameDemands(TR)]]
 }

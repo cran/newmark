@@ -84,7 +84,7 @@ integrateSiteSpectrum <- function(spectrum, VS30, Vref, model, order) {
   I0 <- which(!is.na(P0) & P0 > 0 & P0 < 1)
   LnQ0 <- .buildTailedQuantile(DP0[I0, .(p = as.numeric(p), Sa)])
   LnPGA <- LnQ0(Rule$u)
-  LnPGA <- LnPGA + log(PGA / sum(Rule$w * exp(LnPGA)))
+  LnPGA <- LnPGA + log(PGA / Reduce(`+`, Rule$w * exp(LnPGA)))
   W <- as.vector(outer(Rule$w, Rule$w))
   LIST <- lapply(sort(unique(Rock$Tn)), function(t) {
     DT <- Rock[Tn == t]
@@ -96,7 +96,7 @@ integrateSiteSpectrum <- function(spectrum, VS30, Vref, model, order) {
     Rho <- correlateResiduals(Tn = t, T0 = 0)
     Z1 <- outer(Rho * Z, rep(1, nq)) + outer(rep(1, nq), sqrt(pmax(1 - Rho^2, 0)) * Z)
     LnSa <- as.vector(LnQn(stats::pnorm(Z1)))
-    LnSa <- LnSa + log(Sa / sum(W * exp(LnSa)))
+    LnSa <- LnSa + log(Sa / Reduce(`+`, W * exp(LnSa)))
     Factor <- evaluateSiteFactor(PGA = exp(rep(LnPGA, nq)), Tn = t, VS30 = VS30, Vref = Vref, model = model)
     Mu <- LnSa + Factor$muLnF
     Sigma <- pmax(Factor$sigmaLnF, 1e-9)
@@ -105,7 +105,7 @@ integrateSiteSpectrum <- function(spectrum, VS30, Vref, model, order) {
       p = c(DT$p[Idx], "mean"),
       Sa = c(DT$Sa[Idx], Sa),
       SaF = c(exp(.solveLogQuantile(p = PNum[Idx], muLn = Mu, sigmaLn = Sigma, w = W)),
-              sum(W * exp(Mu + Sigma^2 / 2)))
+              Reduce(`+`, W * exp(Mu + Sigma^2 / 2)))
     )
   })
   OUT <- rbindlist(LIST, use.names = TRUE)
@@ -179,12 +179,12 @@ integrateSiteSpectrum <- function(spectrum, VS30, Vref, model, order) {
 }
 
 # Log-quantiles of a lognormal mixture with positive dispersions: the root of
-# sum(w * pnorm((x - muLn) / sigmaLn)) = p for each probability.
+# sum(w * pnorm((x - muLn) / sigmaLn)) = p for each probability; the sum avoids long double.
 .solveLogQuantile <- function(p, muLn, sigmaLn, w) {
   Lower <- min(muLn - 9 * sigmaLn)
   Upper <- max(muLn + 9 * sigmaLn)
   vapply(p, function(probability) {
-    stats::uniroot(function(x) sum(w * stats::pnorm(q = (x - muLn) / sigmaLn)) - probability,
+    stats::uniroot(function(x) Reduce(`+`, w * stats::pnorm(q = (x - muLn) / sigmaLn)) - probability,
                    lower = Lower, upper = Upper, tol = 1e-10)$root
   }, numeric(1L))
 }

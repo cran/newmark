@@ -71,7 +71,7 @@ queryProjectTable <- function(file, root, table, siteID, where, columns) {
   if (!is.character(table) || length(table) != 1L || is.na(table) || !nzchar(table)) {
     stop("table must be one table name")
   }
-  if (!is.null(siteID) && !.isName(siteID)) stop("siteID must be NULL for a global table or one site identifier")
+  if (!is.null(siteID) && !.isIdentifier(siteID)) stop("siteID must be NULL for a global table or one site identifier")
   GlobalProducts <- unique(unlist(lapply(PRODUCTFILES, function(x) names(x$global))))
   SiteProducts <- unique(unlist(lapply(PRODUCTFILES, function(x) names(x$site))))
   if (!table %in% c(GlobalProducts, SiteProducts)) {

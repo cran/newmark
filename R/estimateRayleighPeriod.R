@@ -31,6 +31,6 @@ estimateRayleighPeriod <- function(VSm, hs, zm) {
   IDX <- order(zm, decreasing = TRUE)
   h <- hs[IDX]
   g <- zm[IDX] / VSm[IDX]^2
-  X <- cumsum(g * h) - g * h / 2
-  2 * pi * sqrt(sum(h * X^2) / sum(h * X))
+  X <- Reduce(`+`, g * h, accumulate = TRUE) - g * h / 2
+  2 * pi * sqrt(Reduce(`+`, h * X^2) / Reduce(`+`, h * X))
 }

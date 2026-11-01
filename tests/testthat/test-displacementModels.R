@@ -63,7 +63,7 @@ test_that("estimatePGV and estimateAI evaluate the in-house regressions", {
 
 test_that("selectDisplacementModels keeps the flexible model of the regime", {
   Switches <- c(AM88 = 1, JB07 = 1, BT07 = 1, SR08 = 1, BM17 = 1, BM19 = 1)
-  expect_message(Crustal <- selectDisplacementModels(Switches, subduction = FALSE), "BM17 off, BM19 on")
+  expect_message(Crustal <- selectDisplacementModels(Switches, subduction = FALSE), "^Dn models: subduction = FALSE -> BM17 off, BM19 on", class = "moduleNote")
   expect_identical(Crustal, c(AM88 = 1, JB07 = 1, BT07 = 1, SR08 = 1, BM19 = 1))
   expect_identical(suppressMessages(selectDisplacementModels(Switches, subduction = TRUE)),
                    c(AM88 = 1, JB07 = 1, BT07 = 1, SR08 = 1, BM17 = 1))

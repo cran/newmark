@@ -1,7 +1,7 @@
 Package: newmark
 Type: Package
 Title: Uncertainty Analysis in Dynamic Site and Slope Response
-Version: 1.9.0
+Version: 1.10.0
 Authors@R: 
     person(given = "Alejandro",
            family = "Verri Kozlowski",
@@ -29,8 +29,8 @@ Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.1
 URL: https://kanameishi.github.io/newmark/
 NeedsCompilation: no
-Packaged: 2026-10-24 18:12:54 UTC; averrik
+Packaged: 2026-10-31 16:28:31 UTC; averrik
 Author: Alejandro Verri Kozlowski [aut, cre, cph]
 Maintainer: Alejandro Verri Kozlowski <averri@fi.uba.ar>
 Repository: CRAN
-Date/Publication: 2026-10-24 22:00:02 UTC
+Date/Publication: 2026-11-01 12:40:29 UTC

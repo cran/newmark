@@ -86,7 +86,7 @@ buildPGATable <- function(rock, MCE, shear, modelID, siteID, TR) {
       Mixture <- refineSiteMixture(Rock[TR == tr, .(Tn, k, muLn, sigmaLn, w)], VS30 = v, Vref = 760,
                                    model = "ST20", levels = Levels, orders = c(16L, 32L, 64L, 128L, 256L),
                                    tolerance = Tolerance)$mixture
-      Mixture[abs(Tn) <= ZeroPeriod, sum(w * exp(muLn + sigmaLn^2 / 2))]
+      Mixture[abs(Tn) <= ZeroPeriod, Reduce(`+`, w * exp(muLn + sigmaLn^2 / 2))]
     }, numeric(1L))
     Spectrum <- refineSiteSpectrum(Mce, VS30 = v, Vref = 760, model = "ST20",
                                    orders = c(32L, 64L, 128L, 256L), tolerance = Tolerance)$spectrum

@@ -2,16 +2,26 @@
 % Please edit documentation in R/describeModule.R
 \name{describeModule}
 \alias{describeModule}
-\title{Installed module identity}
+\title{Describe the installed module}
 \usage{
-describeModule()
+describeModule(resources = NULL)
+}
+\arguments{
+\item{resources}{The resource directory of the installed command, or \code{NULL}
+outside an installed product.}
 }
 \value{
-A list with the package name and installed version; consumed by the
-\code{doctor} operation of the command-line interface.
+A list with \code{schema}, \code{package}, \code{version}, \code{summary} and \code{checks}.
+Each check has \code{name}, \code{required}, \code{status} (\code{ok} or \code{fail}) and \code{detail}.
+The checks \code{library}, \code{exports}, \code{packages}, \code{tools} and \code{receipt} are
+required: the library loads with the version of \code{lib/DESCRIPTION}, the
+declared exports exist, the declared packages load, the declared tools are
+on \code{PATH} and the files of the installation receipt keep their recorded
+MD5.
 }
 \description{
-Installed module identity
+Diagnoses the installation of this module without repairs; the installed
+command prints this report for \code{doctor}.
 }
 \examples{
 describeModule()

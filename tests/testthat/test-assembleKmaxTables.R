@@ -1,4 +1,4 @@
-# Oracle: the kmax fixture of test-kmax-table.R, the stored rows of project
+# Oracle: the kmax fixture of test-buildKmaxTable.R, the stored rows of project
 # AR-M2V4D for geometry S27 and material U4 under TR 100 and the MCE, with
 # its PGA table read back from the CSV and its shear table; buildKmaxTable()
 # reproduces that site table exactly. Another site is the same table under
@@ -30,7 +30,7 @@ test_that("one site gives the table of that site, byte for byte once saved", {
   Slice <- sliceInputs()
   Site <- siteTable(Slice)
   expect_warning(Global <- assemble(list(CFD = Site), Slice),
-                 "global: 432/896 kmax rows use roots beyond sampled support", fixed = TRUE)
+                 "432/896 kmax rows (global) use roots beyond sampled support", fixed = TRUE, class = "moduleWarning")
   expect_identical(serialize(Global, NULL), serialize(Site, NULL))
   expect_identical(data.table::key(Global), KEY)
 })
@@ -39,8 +39,8 @@ test_that("the tables of several sites are stacked, keyed and reported under the
   Slice <- sliceInputs()
   Site <- siteTable(Slice)
   Tables <- list(ZZZ = relabel(Site, "ZZZ"), CFD = Site)
-  expect_warning(Global <- assemble(Tables, Slice), "global: 864/1792 kmax rows use roots beyond sampled support",
-                 fixed = TRUE)
+  expect_warning(Global <- assemble(Tables, Slice), "864/1792 kmax rows (global) use roots beyond sampled support",
+                 fixed = TRUE, class = "moduleWarning")
   expect_identical(data.table::key(Global), KEY)
   # Keyed by siteID first, so CFD precedes ZZZ whatever the order of tables.
   Reversed <- suppressWarnings(assemble(rev(Tables), Slice))

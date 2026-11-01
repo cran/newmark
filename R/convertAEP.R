@@ -14,7 +14,7 @@
 #'   (years), one row per `AEP`.
 #' @export
 #' @examples
-#' convertAEP(AEP = c(1 / 475, 1 / 2475), IT = 50)
+#' convertAEP(AEP = 1 / unique(VancouverSpectra$TR), IT = 50)
 convertAEP <- function(AEP, IT) {
   AEP <- as.numeric(AEP)
   data.table(POE = -expm1(-.recycleIT(IT, length(AEP)) * AEP), TR = 1 / AEP)

@@ -108,7 +108,9 @@ realizations per cell (a positive whole number), the regime (\code{true}
 for subduction) and the 0/1 switches of the displacement models, which
 \code{\link[=selectDisplacementModels]{selectDisplacementModels()}} turns into the weights of the active
 models. \code{DnTable} and \code{kmaxTable}.}
-\item{\code{Mw.gmdp}}{Moment magnitude of the scenarios. \code{DnTable}.}
+\item{\code{Mw.gmdp}}{Moment magnitude of the scenarios: one number for every
+demand, or an object that names each return period of \code{TR.gmdp} and
+\code{MCE} with its magnitude. \code{DnTable}.}
 \item{\code{DaH.gmdp}}{Admissible displacements, distinct positive
 percentages of the height \code{Hs}. \code{kmaxTable}.}
 \item{\code{DN_PARALLEL}, \code{DN_WORKERS}}{Optional parallel controls of

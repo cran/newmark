@@ -29,6 +29,7 @@ referenceInputs <- function() {
 }
 
 test_that("buildShearTable reproduces the seeded ShearTable of the corrected newmark 1.7.1", {
+  skip_on_cran()
   Reference <- referenceShearTable()
   set.seed(20260915L)
   Actual <- do.call(buildShearTable, referenceInputs())

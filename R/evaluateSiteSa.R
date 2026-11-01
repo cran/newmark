@@ -32,8 +32,8 @@
 #'   (the model), unrounded.
 #' @export
 #' @examples
-#' evaluateSiteSa(Sa = c(0.1, 0.2, 0.3, 0.4), PGA = rep(0.1, 4), Tn = 0.5,
-#'                VS30 = 300, Vref = 760, model = "ST17")
+#' evaluateSiteSa(Sa = VancouverSpectra[Tn == 0.5][order(TR), Sa], Tn = 0.5, VS30 = 300,
+#'                PGA = VancouverSpectra[Tn == 0][order(TR), Sa], Vref = 760, model = "ST17")
 evaluateSiteSa <- function(Sa, PGA, Tn, VS30, Vref, model) {
   if (!is.numeric(Sa) || !length(Sa) || any(!is.finite(Sa)) || any(Sa <= 0)) {
     stop("Sa must be finite and positive")

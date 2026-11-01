@@ -49,6 +49,6 @@ dispersion.
 }
 
 \examples{
-evaluateSiteSa(Sa = c(0.1, 0.2, 0.3, 0.4), PGA = rep(0.1, 4), Tn = 0.5,
-               VS30 = 300, Vref = 760, model = "ST17")
+evaluateSiteSa(Sa = VancouverSpectra[Tn == 0.5][order(TR), Sa], Tn = 0.5, VS30 = 300,
+               PGA = VancouverSpectra[Tn == 0][order(TR), Sa], Vref = 760, model = "ST17")
 }

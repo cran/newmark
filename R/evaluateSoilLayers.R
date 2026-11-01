@@ -107,13 +107,13 @@ evaluateSoilLayers <- function(layers, Hs, water, POP, m1 = HardinExponent) {
     Exponent[Fines] <- approx(x = m1$IP, y = m1$m1, xout = OUT$IP[Fines])$y
   }
   # Every correlation of the layer's group is evaluated on one row; the layer
-  # modulus is the base-R mean over its group, in the order of the parameter
-  # table, so the value equals the per-layer loop of newmark 1.7.1 bit for bit.
+  # modulus is the two-pass mean of its group in double, in the order of the parameter
+  # table, so the value equals the per-layer loop of newmark 1.7.1 on macOS bit for bit.
   Layer <- data.table(layer = seq_len(NL), group = Group, eo = OUT$eo, OCR = OCR, pm = pm, m1 = Exponent)
   Pairs <- .dataset("ShearModelParameters")[Layer, on = .(GroupID = group), allow.cartesian = TRUE]
   Pairs[, Fe := ifelse(ModelID == "SS75", Ce - eo / (1 + eo), (Ce - eo)^2 / (1 + eo))]
   Pairs[, G := A * Fe * (OCR^m1) * 100^(n) * (pm / 100)^(n)]
-  Gm <- vapply(split(Pairs$G, Pairs$layer), mean, numeric(1L), USE.NAMES = FALSE)
+  Gm <- vapply(split(Pairs$G, Pairs$layer), .portableMean, numeric(1L), USE.NAMES = FALSE)
   OUT[, group := Group]
   if (all(c("emin", "emax") %in% names(OUT))) OUT[, Dr := (emax - eo) / (emax - emin)]
   OUT[, `:=`(gs = gs, pm = pm, OCR = OCR, Gm = Gm, VSm = sqrt(9.81 * Gm * 1000 / gsat))]

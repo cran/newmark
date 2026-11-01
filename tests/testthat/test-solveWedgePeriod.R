@@ -121,10 +121,11 @@ test_that("the analytic route carries its root diagnostics and the geometry is c
   Exact <- solveWedgePeriod(Layers, Hs = 10, lo = 0.351, mo = 0.5, VSo = 200, method = "exact", elements = 2)
   Surrogate <- solveWedgePeriod(Layers, Hs = 10, lo = 0.351, mo = 0.5, VSo = 200, method = "nlm", elements = 2)
   # The numerical period does not depend on the root model of the analytic route.
-  expect_identical(Surrogate$Ts, Exact$Ts)
+  # expect_equal: under Intel MKL two equal evaluations of these periods and roots differ in the last digit (CRAN additional check of 1.9.0).
+  expect_equal(Surrogate$Ts, Exact$Ts)
   expect_true(Exact$anExact && Exact$anWithinSupport)
   Root <- evaluateRoot(buildRootModel(mode = 1, method = "nlm"), mo = 0.5, lo = 0.351)
-  expect_identical(Surrogate[, .(an, anExact, anWithinSupport)], Root[, .(an, anExact = exact, anWithinSupport = withinSupport)])
+  expect_equal(Surrogate[, .(an, anExact, anWithinSupport)], Root[, .(an, anExact = exact, anWithinSupport = withinSupport)])
   expect_equal(Surrogate$TsAnalytic, evaluateBeamPeriod(Hs = 10, lo = 0.351, mo = 0.5, VSo = 200, an = Root$an))
   expect_equal(Surrogate$TsAnalyticDifference, Surrogate$TsAnalytic / Surrogate$Ts - 1)
   expect_error(solveWedgePeriod(Layers, Hs = 12, lo = 0.351, mo = 0.5, VSo = 200, method = "exact", elements = 2),

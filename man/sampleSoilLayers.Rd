@@ -32,7 +32,12 @@ the sampled layers is evaluated afterwards by \code{\link[=evaluateSoilLayers]{e
 
 The column has \eqn{N_L = \lceil H_s / h \rceil} layers of thickness \code{h},
 so its depth \eqn{N_L h} can exceed \code{Hs} when \code{Hs} is not a multiple of
-\code{h}; layer \code{k} spans \eqn{[(k-1)h, kh]} with midpoint \eqn{z_m}. The class
+\code{h}. A quotient that exceeds an integer by at most \eqn{4 \epsilon} times
+its value, with \eqn{\epsilon = 2^{-52}} the double-precision epsilon,
+counts as that integer, so decimal lengths whose exact quotient is a whole
+number, as with 2.1 m divided by 0.3 m, do not add a layer by
+floating-point rounding. Layer \code{k} spans \eqn{[(k-1)h, kh]} with midpoint
+\eqn{z_m}. The class
 of every layer is drawn uniformly, with replacement, from \code{USCS}. For a
 layer of class \code{c}, with the intervals of \code{VoidRatiosUSCS} and
 \code{UnitWeightRanges},

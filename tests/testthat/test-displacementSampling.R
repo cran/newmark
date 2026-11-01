@@ -31,7 +31,7 @@ test_that("correlateResiduals reproduces the 1.7.1 coefficients and keeps its co
   expectReproduces(correlateResiduals(Tn = c(0.3, 1), T0 = 0.01), reference()$rho[c(1L, 4L)])
   expect_identical(correlateResiduals(Tn = 0.5, T0 = 0.3), correlateResiduals(Tn = 0.3, T0 = 0.5))
   expect_identical(correlateResiduals(Tn = 0, T0 = 1), correlateResiduals(Tn = 0.01, T0 = 1))
-  expect_warning(correlateResiduals(Tn = 20, T0 = 1), "0.01 to 10 s")
+  expect_warning(correlateResiduals(Tn = 20, T0 = 1), "0.01 to 10 s", class = "moduleWarning")
   expect_error(correlateResiduals(Tn = c(0.1, 0.2), T0 = c(0.1, 0.2, 0.3)), "equal length")
 })
 
@@ -156,7 +156,7 @@ test_that("buildQuantileSpline and interpolateSpectrum reproduce 1.7.1", {
   R <- reference()
   Q <- buildQuantileSpline(data.frame(p = c(0.16, 0.50, 0.84), Sa = c(0.3, 0.5, 0.8)))
   expectReproduces(Q(c(0, 0.1, 0.16, 0.3, 0.5, 0.84, 0.9, 1)), R$spline)
-  expect_warning(buildQuantileSpline(data.frame(p = c(0.16, 0.5, 0.5, 0.84), Sa = c(0.3, 0.5, 0.5, 0.8))), "duplicate p rows")
+  expect_warning(buildQuantileSpline(data.frame(p = c(0.16, 0.5, 0.5, 0.84), Sa = c(0.3, 0.5, 0.5, 0.8))), "duplicate p rows", class = "moduleWarning")
   expect_error(buildQuantileSpline(data.frame(p = c(0.16, 0.5, 0.84), Sa = c(0.3, 0.5, 0.8), Tn = c(0, 0, 1))), "several values")
   Spectrum <- data.frame(Tn = rep(c(0.2, 0.8), each = 3L), p = rep(c("0.16", "0.84", "mean"), 2L), Sa = c(1, 2, 1.5, 4, 8, 6))
   expectReproduces(as.list(interpolateSpectrum(Spectrum, Tn = 0.4)), R$interpolate)

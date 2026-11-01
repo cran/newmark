@@ -175,8 +175,8 @@ evaluateSiteFactor <- function(PGA, Tn, VS30, Vref, model) {
 .coefficientsST20 <- function(Tn) {
   DT <- SiteAmp2020
   if (Tn > 10) {
-    warning("evaluateSiteFactor: Tn = ", Tn, " s exceeds the published 10 s table of ST20; clamped to 10 s.",
-            call. = FALSE)
+    .warn("Tn = ", Tn, " s exceeds the published 10 s table of ST20; clamped to 10 s.",
+          operation = "evaluateSiteFactor")
     Tn <- 10
   }
   if (Tn <= 0.01) return(as.list(DT[1L]))

@@ -8,7 +8,12 @@
 #' @section Mathematics:
 #' The column has \eqn{N_L = \lceil H_s / h \rceil} layers of thickness `h`,
 #' so its depth \eqn{N_L h} can exceed `Hs` when `Hs` is not a multiple of
-#' `h`; layer `k` spans \eqn{[(k-1)h, kh]} with midpoint \eqn{z_m}. The class
+#' `h`. A quotient that exceeds an integer by at most \eqn{4 \epsilon} times
+#' its value, with \eqn{\epsilon = 2^{-52}} the double-precision epsilon,
+#' counts as that integer, so decimal lengths whose exact quotient is a whole
+#' number, as with 2.1 m divided by 0.3 m, do not add a layer by
+#' floating-point rounding. Layer `k` spans \eqn{[(k-1)h, kh]} with midpoint
+#' \eqn{z_m}. The class
 #' of every layer is drawn uniformly, with replacement, from `USCS`. For a
 #' layer of class `c`, with the intervals of `VoidRatiosUSCS` and
 #' `UnitWeightRanges`,
@@ -55,7 +60,15 @@ sampleSoilLayers <- function(Hs, USCS, h) {
   }
   Problem <- .diagnoseUSCSPool(USCS)
   if (!is.null(Problem)) stop(Problem)
-  NL <- ceiling(Hs / h)
+  # Hs and h are decimal lengths that binary doubles hold inexactly, so their
+  # quotient can land a few units of double precision above an integer
+  # (2.1 / 0.3 gives 7.000000000000001) and ceiling() alone would add a layer
+  # the height does not hold. The documented rule treats a remainder of at
+  # most 4 * .Machine$double.eps times the quotient as that rounding: the two
+  # conversions and the division each round by at most half an epsilon.
+  Ratio <- Hs / h
+  NL <- ceiling(Ratio)
+  if (Ratio - (NL - 1) <= 4 * .Machine$double.eps * Ratio) NL <- NL - 1
   Class <- sample(USCS, size = NL, replace = TRUE)
   zo <- zi <- emin <- emax <- eo <- gsat <- LL <- IP <- rep(NA_real_, NL)
   for (k in seq_len(NL)) {

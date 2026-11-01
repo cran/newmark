@@ -1,22 +1,41 @@
-#' newmark: uncertainty analysis in dynamic site and slope response
+#' Uncertainty analysis in dynamic site and slope response
 #'
-#' The library is built around explicit scientific calculations
-#' whose results carry their representative value, their applicable quantiles
-#' or dispersion and the information needed to propagate uncertainty. The
-#' soil and dynamics family separates synthetic layer generation
-#' ([sampleSoilLayers()]) from the deterministic layer physics
-#' ([evaluateSoilLayers()]), the profile characterization
-#' ([characterizeProfile()], [estimateVS30()], [estimateRayleighPeriod()],
-#' [classifySite()]), the characteristic roots of the truncated shear beam
-#' ([buildRootModel()], [evaluateRoot()]), the analytic modal periods of the
-#' truncated shear beam ([evaluateBeamPeriod()]) and the numerical fundamental
-#' periods of a layered soil profile and a truncated shear beam ([solveColumnPeriod()],
-#' [solveWedgePeriod()], [solveProfilePeriods()]). [simulateSoilProfiles()] retains every
-#' realization with its paired properties and layers; [propagateSitePeriod()]
-#' and [propagateBeamPeriod()] solve the fundamental periods `Tr` and `Ts` of each
-#' realization before any summary, and [summarizeProfiles()]
-#' reduces them to marginal statistics. [buildShearTable()] reproduces the
-#' product of `newmark` 1.7.1 for comparison with the installed oracle.
+#' Estimates the seismic response of sites and slopes from the results of a
+#' seismic hazard analysis. Uncertainty in the soil profile and in the ground
+#' motion is represented by Monte Carlo samples, and every result is reported
+#' with its representative value, its applicable quantiles or dispersion, and
+#' the population or conditioning to which it refers. The exported functions
+#' form the families below.
+#'
+#' Soil profiles and their periods: [buildGeometry()], [sampleSoilLayers()],
+#' [evaluateSoilLayers()], [characterizeProfile()], [estimateVS30()],
+#' [classifySite()], [estimateRayleighPeriod()],
+#' [estimateWeightedRayleighPeriod()], [buildRootModel()], [evaluateRoot()],
+#' [evaluateBeamPeriod()], [solveColumnPeriod()], [solveWedgePeriod()],
+#' [solveProfilePeriods()], [simulateSoilProfiles()], [propagateBeamPeriod()],
+#' [propagateSitePeriod()], [summarizeProfiles()], [buildShearTable()].
+#'
+#' Hazard inputs: [readHazardWorkbook()], [convertAEP()],
+#' [evaluateUniformHazard()].
+#'
+#' Site response: [evaluateSiteFactor()], [evaluateSiteSa()],
+#' [integrateSiteMixture()], [summarizeMixture()], [refineSiteMixture()],
+#' [integrateSiteSpectrum()], [refineSiteSpectrum()], [simulateSiteSpectrum()],
+#' [buildPGATable()].
+#'
+#' Earthquake-induced displacement: [correlateResiduals()],
+#' [buildQuantileSpline()], [interpolateSpectrum()], [sampleSpectra()],
+#' [sampleIntensities()], [estimatePGV()], [estimateAI()], [listDisplacementFamilies()],
+#' [selectDisplacementModels()], [buildKyGrid()], [buildKyLimits()],
+#' [evaluateRigidDisplacement()], [evaluateFlexibleDisplacement()],
+#' [evaluateDisplacements()], [summarizeDisplacements()], [summarizeEnsemble()],
+#' [integrateDnHazard()], [buildDnTables()], [assembleDnTables()].
+#'
+#' Pseudostatic coefficient: [solveKmax()], [summarizeKmax()],
+#' [buildKmaxTable()], [assembleKmaxTables()].
+#'
+#' Projects: [processProject()], [listProjectTables()], [queryProjectTable()],
+#' [describeModule()].
 #'
 #' @keywords internal
 "_PACKAGE"

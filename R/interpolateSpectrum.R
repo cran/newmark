@@ -41,8 +41,8 @@ interpolateSpectrum <- function(spectrum, Tn) {
   Target <- Tn
   DT <- as.data.table(spectrum)
   if (anyDuplicated(DT[, .(Tn, p)])) {
-    warning("spectrum has duplicate (Tn, p) rows; they are averaged in log space. ",
-            "Select one spectrum slice before interpolating.", call. = FALSE)
+    .warn("spectrum has duplicate (Tn, p) rows; they are averaged in log space. ",
+          "Select one spectrum slice before interpolating.", operation = "interpolateSpectrum")
   }
   Labels <- sort(unique(DT[p != "mean"]$p))
   if (!length(Labels)) {

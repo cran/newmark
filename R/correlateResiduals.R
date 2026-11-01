@@ -41,8 +41,8 @@ correlateResiduals <- function(Tn, T0) {
   Tn[Tn <= 0] <- 0.01
   T0[T0 <= 0] <- 0.01
   if (any(c(Tn, T0) < 0.01 | c(Tn, T0) > 10)) {
-    warning("Baker and Jayaram (2008) is calibrated for periods from 0.01 to 10 s; ",
-            "the correlation outside that range is an extrapolation")
+    .warn("Baker and Jayaram (2008) is calibrated for periods from 0.01 to 10 s; ",
+          "the correlation outside that range is an extrapolation", operation = "correlateResiduals")
   }
   Tmin <- pmin(T0, Tn)
   Tmax <- pmax(T0, Tn)

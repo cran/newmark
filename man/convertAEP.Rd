@@ -29,5 +29,5 @@ The conversion is exact; it carries no dispersion.
 }
 
 \examples{
-convertAEP(AEP = c(1 / 475, 1 / 2475), IT = 50)
+convertAEP(AEP = 1 / unique(VancouverSpectra$TR), IT = 50)
 }

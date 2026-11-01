@@ -17,7 +17,7 @@ sliceTable <- function(slice) {
 
 test_that("buildKmaxTable reproduces the stored newmark 1.7.1 kmaxTable rows exactly", {
   Slice <- sliceInputs()
-  expect_warning(Actual <- sliceTable(Slice), "kmax rows use roots beyond sampled support")
+  expect_warning(Actual <- sliceTable(Slice), "kmax rows (siteID=CFD) use roots beyond sampled support", fixed = TRUE, class = "moduleWarning")
   Reference <- Slice$kmaxTable
   expectReproducesTable(Reference, Actual)
   expect_identical(names(Reference), names(Actual))

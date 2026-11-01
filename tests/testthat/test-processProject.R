@@ -104,13 +104,28 @@ dnProject <- function(sites = c("S1", "S2"), mceSites = sites, contract = DN) {
 
 planQuietly <- function(...) suppressMessages(processProject(..., dryRun = TRUE))
 
+# The value of an expression and the messages it signals, in order, muffled.
+captureMessages <- function(expr) {
+  Conditions <- list()
+  Value <- withCallingHandlers(expr, message = function(m) {
+    Conditions[[length(Conditions) + 1L]] <<- m
+    invokeRestart("muffleMessage")
+  })
+  list(value = Value, conditions = Conditions)
+}
+
+# On CRAN, whose check time is limited, the test of what the kmaxTable step
+# publishes and the dry run execute; the other tests that run a step skip
+# there.
+
 test_that("the ShearTable step equals buildShearTable called directly and creates path.tables", {
+  skip_on_cran()
   Root <- newProjectRoot()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   writeContract(Root, SHEAR)
   expect_false(dir.exists(file.path(Root, "products")))
   expect_message(Effects <- processProject(root = Root, steps = "ShearTable"),
-                 "ShearTable: wrote ShearTable (18 rows, seed 20260915)", fixed = TRUE)
+                 "ShearTable wrote ShearTable (18 rows, seed 20260915)", fixed = TRUE, class = "moduleProgress")
 
   set.seed(20260915L)
   Expected <- buildShearTable(buildGeometry(Hs = c(10, 12), lo = seq(0.35, 0.075, length.out = 2L),
@@ -132,6 +147,7 @@ test_that("the ShearTable step equals buildShearTable called directly and create
 })
 
 test_that("a geometryTable and pairs reach buildShearTable as the contract declares them", {
+  skip_on_cran()
   Geometry <- '[{"IDg":"S10","Hs":10<D>,"b":8<D>,"s":2<D>},{"IDg":"S20","Hs":20<D>,"b":16<D>,"s":3<D>}]'
   shearFrom <- function(decimals) {
     Root <- newProjectRoot()
@@ -202,6 +218,7 @@ test_that("keys the contract schema does not define are refused by name, nested 
 })
 
 test_that("without seed the ShearTable step runs on the caller's stream and reports no seed", {
+  skip_on_cran()
   Root <- newProjectRoot()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   writeContract(Root, SHEAR[names(SHEAR) != "seed"])
@@ -210,7 +227,7 @@ test_that("without seed the ShearTable step runs on the caller's stream and repo
   expect_identical(planQuietly(root = Root, steps = "ShearTable")$product, "ShearTable")
   expect_identical(get(".Random.seed", envir = globalenv()), Stream)
   expect_message(Effects <- processProject(root = Root, steps = "ShearTable"),
-                 "ShearTable: wrote ShearTable (18 rows, seed none)", fixed = TRUE)
+                 "ShearTable wrote ShearTable (18 rows, seed none)", fixed = TRUE, class = "moduleProgress")
   expect_identical(Effects$rows, 18L)
   # Not reseeded: the table is the one buildShearTable() draws from the same stream.
   set.seed(4L)
@@ -368,6 +385,30 @@ test_that("a site key absent or malformed fails naming the contract and the key"
   expect_error(planQuietly(root = Root, steps = "DnTable"), "must define Mw.gmdp", fixed = TRUE)
 })
 
+test_that("Mw.gmdp is one positive magnitude or names each return period of TR.gmdp and MCE once, or the plan stops", {
+  Root <- stubSiteProject()
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  # TR.gmdp of SITES is 500, 100, 500: the return periods 100 and 500.
+  Contract <- SITES
+  Contract$Mw.gmdp <- list(`500` = 6.5, MCE = 6.5, `100` = 5.5)
+  writeContract(Root, Contract)
+  expect_identical(nrow(planQuietly(root = Root, steps = "DnTable")), 8L)
+  Message <- "must define Mw.gmdp as one magnitude or one magnitude per demand (each return period of TR.gmdp and MCE)"
+  Cases <- list(list(`100` = 5.5, MCE = 6.5), list(`100` = 5.5, `500` = 6.5),
+                list(`100` = 5.5, `200` = 6, `500` = 6.5, MCE = 6.5), list(`100` = 5.5, `500` = "6.5", MCE = 6.5),
+                list(`100` = 5.5, `500` = 6.5, MCE = 0), list(MCE = 6.5), c(5.5, 6.5), 0, -6.5)
+  for (Mw in Cases) {
+    Contract$Mw.gmdp <- Mw
+    writeContract(Root, Contract)
+    expect_error(planQuietly(root = Root, steps = "DnTable"), Message, fixed = TRUE)
+  }
+  Contract$Mw.gmdp <- list(`100` = 5.5, `500` = 6.5, MCE = 6.5)
+  writeLines(sub('"MCE":6.5}', '"MCE":6.5,"500":7}', jsonlite::toJSON(Contract, digits = I(17), auto_unbox = TRUE),
+                 fixed = TRUE), file.path(Root, "newmark.json"))
+  expect_match(readLines(file.path(Root, "newmark.json")), '"500":7}', fixed = TRUE)
+  expect_error(planQuietly(root = Root, steps = "DnTable"), Message, fixed = TRUE)
+})
+
 test_that("an input that no selected step produces names the file and its producer", {
   Root <- stubSiteProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
@@ -402,16 +443,23 @@ test_that("a dry run reports every destination in publication order and changes 
   Directory <- getwd()
   set.seed(4L)
   Stream <- get(".Random.seed", envir = globalenv())
-  Messages <- capture_messages(Effects <- processProject(root = Root, sites = "S2", dryRun = TRUE))
+  Run <- captureMessages(processProject(root = Root, sites = "S2", dryRun = TRUE))
+  Effects <- Run$value
+  Notes <- Run$conditions
 
   expect_identical(Effects$path, c("products/ShearTable.Rds", "products/M1/S2/DnDraws.Rds",
                                    "products/M1/S2/PGATable.csv", "products/M1/S2/DnTable.Rds",
                                    "products/DnPlotTable.Rds", "products/DnTable.Rds",
                                    "products/M1/S2/kmaxTable.Rds", "products/kmaxTable.Rds"))
   expect_identical(Effects$action, c(rep("replaces", 3L), rep("writes", 5L)))
-  expect_true(all(c(paste0("dry run: ", file.path(Root, "newmark.json"), "\n"), "steps: ShearTable, DnTable, kmaxTable\n",
-                    "sites: S2\n", "ShearTable: replaces products/ShearTable.Rds\n",
-                    "kmaxTable: writes products/kmaxTable.Rds\n") %in% Messages))
+  # The plan is the notes of the process operation; the contract also selects the flexible model of the regime.
+  expect_true(all(vapply(Notes, inherits, logical(1L), "moduleNote")))
+  Plan <- Filter(function(x) identical(x$operation, "process"), Notes)
+  expect_identical(vapply(Plan, conditionMessage, ""),
+                   paste0(c(paste("Dry run of", file.path(Root, "newmark.json")), "Steps: ShearTable, DnTable, kmaxTable",
+                            "Sites: S2", paste(Effects$step, Effects$action, Effects$path)), "\n"))
+  expect_identical(vapply(Plan, `[[`, "", "phase"), c(rep("plan", 3L), Effects$step))
+  expect_identical(lapply(Plan, `[[`, "path"), c(list(file.path(Root, "newmark.json"), NULL, NULL), as.list(Effects$path)))
   expect_identical(getwd(), Directory)
   expect_identical(get(".Random.seed", envir = globalenv()), Stream)
   expect_identical(list.files(Root, recursive = TRUE, all.files = TRUE), Before)
@@ -563,6 +611,7 @@ test_that("an error of the writer reaches the caller as the same condition, or a
 })
 
 test_that("the only file of the ShearTable group is never half replaced", {
+  skip_on_cran()
   Root <- newProjectRoot()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   writeContract(Root, SHEAR)
@@ -621,10 +670,15 @@ siteGroup <- function(siteID) file.path("products", "M1", siteID, c("DnDraws.Rds
 temporaries <- function(root) list.files(root, recursive = TRUE, all.files = TRUE, pattern = "^[.]")
 
 test_that("the DnTable step publishes what buildDnTables, buildPGATable and assembleDnTables return", {
+  skip_on_cran()
   Root <- dnProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
-  Messages <- capture_messages(Effects <- processProject(root = Root, steps = "DnTable"))
-  expect_true(all(c("DnTable: wrote site S1\n", "DnTable: wrote site S2\n") %in% Messages))
+  Run <- captureMessages(processProject(root = Root, steps = "DnTable"))
+  Effects <- Run$value
+  expect_true(all(vapply(Run$conditions, inherits, logical(1L), "moduleProgress")))
+  expect_identical(vapply(Run$conditions, conditionMessage, ""), c("DnTable wrote site S1\n", "DnTable wrote site S2\n"))
+  expect_identical(lapply(Run$conditions, `[[`, "unit"), list("S1", "S2"))
+  expect_identical(lapply(Run$conditions, `[[`, "path"), list(siteGroup("S1"), siteGroup("S2")))
 
   Shear <- readRDS(file.path(Root, "products", "ShearTable.Rds"))
   MCE <- readRDS(file.path(Root, "data", "MCETable.Rds"))
@@ -659,6 +713,7 @@ test_that("the DnTable step publishes what buildDnTables, buildPGATable and asse
 })
 
 test_that("dn products repeat exactly and do not depend on the sites run alongside", {
+  skip_on_cran()
   Alone <- dnProject(sites = "S1")
   Both <- dnProject()
   on.exit(unlink(c(Alone, Both), recursive = TRUE), add = TRUE)
@@ -671,6 +726,7 @@ test_that("dn products repeat exactly and do not depend on the sites run alongsi
 })
 
 test_that("the global tables hold every site found with a DnTable.Rds, selected or not", {
+  skip_on_cran()
   Root <- dnProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   Effects <- suppressMessages(processProject(root = Root, steps = "DnTable", sites = "S1"))
@@ -685,6 +741,7 @@ test_that("the global tables hold every site found with a DnTable.Rds, selected 
 })
 
 test_that("an invalid DnTable.Rds of another site stops the global rebuild after the selected site is published", {
+  skip_on_cran()
   Root <- dnProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   suppressMessages(processProject(root = Root, steps = "DnTable"))
@@ -702,6 +759,7 @@ test_that("an invalid DnTable.Rds of another site stops the global rebuild after
 })
 
 test_that("a failure at a rename of the DnTable step leaves published only the files before it", {
+  skip_on_cran()
   Cases <- list(
     list(block = siteGroup("S1")[[1L]], published = character(), kept = character()),
     list(block = siteGroup("S1")[[2L]], published = siteGroup("S1")[[1L]], kept = siteGroup("S1")[2:3]),
@@ -729,6 +787,7 @@ test_that("a failure at a rename of the DnTable step leaves published only the f
 })
 
 test_that("a failure in the calculation of a later site leaves the sites before it published", {
+  skip_on_cran()
   Root <- dnProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   saveRDS(data.table::data.table(x = 1), file.path(Root, "uhs", "M1", "S2", "UHSRock.Rds"))
@@ -774,6 +833,7 @@ test_that("without ShearTable, the MCE demand and the heights are checked before
 })
 
 test_that("with ShearTable selected, the DnTable checks follow the publication of the shear table", {
+  skip_on_cran()
   Root <- dnProject(mceSites = "S1", contract = c(DN, SHEAR[c("Hs", "lo.min", "lo.max", "s.min", "s.max", "uscs",
                                                                "IDm", "seed")]))
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
@@ -837,8 +897,11 @@ test_that("the kmaxTable step publishes what buildKmaxTable and assembleKmaxTabl
   Root <- dnProjectRun()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   Dn <- dnProducts(Root)
-  Messages <- capture_messages(Effects <- processProject(root = Root, steps = "kmaxTable"))
-  expect_true(all(c("kmaxTable: wrote site S1\n", "kmaxTable: wrote site S2\n") %in% Messages))
+  Run <- captureMessages(processProject(root = Root, steps = "kmaxTable"))
+  Effects <- Run$value
+  expect_true(all(vapply(Run$conditions, inherits, logical(1L), "moduleProgress")))
+  expect_identical(vapply(Run$conditions, conditionMessage, ""), c("kmaxTable wrote site S1\n", "kmaxTable wrote site S2\n"))
+  expect_identical(lapply(Run$conditions, `[[`, "phase"), list("kmaxTable", "kmaxTable"))
   # The step leaves the DnTable products as they were.
   expect_identical(dnProducts(Root), Dn)
 
@@ -869,6 +932,7 @@ test_that("the kmaxTable step publishes what buildKmaxTable and assembleKmaxTabl
 })
 
 test_that("the three steps run in order, and kmaxTable reads the shear table the run has just published", {
+  skip_on_cran()
   Root <- dnProject(contract = c(DN, SHEAR[c("Hs", "lo.min", "lo.max", "s.min", "s.max", "uscs", "IDm", "seed")]))
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   Effects <- suppressMessages(processProject(root = Root))
@@ -881,6 +945,7 @@ test_that("the three steps run in order, and kmaxTable reads the shear table the
 })
 
 test_that("the global kmaxTable holds every site found with a kmaxTable.Rds, selected or not", {
+  skip_on_cran()
   Root <- dnProjectRun()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   Effects <- suppressMessages(processProject(root = Root, steps = "kmaxTable", sites = "S1"))
@@ -893,6 +958,7 @@ test_that("the global kmaxTable holds every site found with a kmaxTable.Rds, sel
 })
 
 test_that("a run over one site rebuilds the global tables from every site present", {
+  skip_on_cran()
   Root <- dnProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   suppressMessages(processProject(root = Root, steps = c("DnTable", "kmaxTable")))
@@ -906,6 +972,7 @@ test_that("a run over one site rebuilds the global tables from every site presen
 })
 
 test_that("the global kmaxTable reads no PGATable.csv, which a selected site still needs", {
+  skip_on_cran()
   Root <- dnProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   suppressMessages(processProject(root = Root, steps = c("DnTable", "kmaxTable")))
@@ -924,6 +991,7 @@ test_that("the global kmaxTable reads no PGATable.csv, which a selected site sti
 })
 
 test_that("a kmaxTable.Rds of another site that the global table rejects stops it after the selected site is published", {
+  skip_on_cran()
   Root <- dnProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   suppressMessages(processProject(root = Root, steps = c("DnTable", "kmaxTable")))
@@ -944,6 +1012,7 @@ test_that("a kmaxTable.Rds of another site that the global table rejects stops i
 })
 
 test_that("a failure at a rename of the kmaxTable step leaves published only the files before it", {
+  skip_on_cran()
   Cases <- list(
     list(block = siteKmax("S1"), published = character(), site = "S1"),
     list(block = siteKmax("S2"), published = siteKmax("S1"), site = "S2"),
@@ -974,6 +1043,7 @@ test_that("a failure at a rename of the kmaxTable step leaves published only the
 })
 
 test_that("a failure in the calculation of a later site of kmaxTable leaves the sites before it published", {
+  skip_on_cran()
   Root <- dnProjectRun()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   saveRDS(data.table::data.table(x = 1), file.path(Root, "products", "M1", "S2", "DnDraws.Rds"))

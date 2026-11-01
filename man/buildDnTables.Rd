@@ -39,7 +39,8 @@ per return period at Vs30 = Vref = 760 m/s (\code{ID}, \code{siteID}, \code{TR},
 \item{Vref}{Reference rock velocity in m/s; the product contract admits
 only 760.}
 
-\item{Mw}{Moment magnitude of the scenarios.}
+\item{Mw}{Moment magnitude of the scenarios: one number for every demand, or a numeric vector
+named by the return periods of \code{TR}, written as they print, and \code{MCE}.}
 
 \item{NS}{Realizations per geometry, material and demand.}
 

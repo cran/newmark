@@ -47,7 +47,7 @@ summarizeProfiles <- function(profiles, levels, properties) {
   DT <- as.data.table(profiles)
   LIST <- lapply(seq_along(Level), function(i) {
     ROW <- if (IsMean[i]) {
-      DT[, lapply(.SD, mean), .SDcols = Properties]
+      DT[, lapply(.SD, .portableMean), .SDcols = Properties]
     } else {
       DT[, lapply(.SD, quantile, probs = Prob[i], names = FALSE), .SDcols = Properties]
     }

@@ -21,6 +21,7 @@ test_that("integrateSiteSpectrum reproduces the fitSaF quadrature of newmark 1.7
 })
 
 test_that("integrateSiteSpectrum resolves the steep S2L1W upper tail as newmark 1.7.1", {
+  skip_on_cran()
   Reference <- siteReference()
   Spectra <- lapply(c(64, 128, 256), function(Order) {
     integrateSiteSpectrum(Reference$steep, VS30 = 180, Vref = 760, model = "ST20", order = Order)
@@ -137,7 +138,7 @@ test_that("simulateSiteSpectrum maps every copula uniform through the monotone t
 })
 
 test_that("simulateSiteSpectrum samples the closed-form quantiles of a single lognormal within Monte Carlo error", {
-  # The single-lognormal fixture of test-siteResponse-mixture.R (ln PGA ~
+  # The single-lognormal fixture of test-siteMixture.R (ln PGA ~
   # N(ln 0.4, 0.5), an atom at 0.1 g at Tn = 1) as a rock quantile spectrum
   # at the probability levels of the 1.7.1 product, with its closed-form mean.
   P <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)

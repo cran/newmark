@@ -66,3 +66,22 @@
 #' @format A data.table with 9 rows and 4 variables: `SC`, `Description`,
 #'   `Vs30 (m/s)` and `Vs30 (ft/s)`.
 "SiteClass"
+
+#' Uniform hazard spectra of Vancouver on rock from the 2020 National Building Code of Canada
+#'
+#' Spectral accelerations of the 2020 National Building Code of Canada seismic
+#' hazard model for Vancouver (latitude 49.2827, longitude -123.1207) on rock,
+#' Vs30 760 m/s, as published by the seismic hazard tool of Natural Resources
+#' Canada. Each row gives the acceleration `Sa` at the oscillator period `Tn`
+#' whose annual frequency of exceedance is `1 / TR`; `Tn = 0` holds the peak
+#' ground acceleration. The ten return periods correspond to probabilities of
+#' exceedance in 50 years between 2 and 40 percent. Values retrieved on
+#' 2026-10-24 through the tool's public interface; they are reproduced under
+#' the Open Government Licence - Canada.
+#'
+#' @format A data.table with 100 rows and 3 variables: `TR` (return period,
+#'   years), `Tn` (oscillator period, s), `Sa` (spectral acceleration, g).
+#' @source Natural Resources Canada, 2020 National Building Code of Canada
+#'   Seismic Hazard Tool,
+#'   <https://www.earthquakescanada.nrcan.gc.ca/hazard-alea/interpolat/nbc2020-cnb2020-en.php>
+"VancouverSpectra"

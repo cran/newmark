@@ -86,7 +86,7 @@ buildKmaxTable <- function(draws, PGATable, shear, modelID, siteID, TR, NS, weig
                  units.Da = "cm", units.kmax = "g", units.PGA = "g", units.Kh = "ratio")]
   .checkKmaxTable(DT, shear = Shear, PGA = PGA, siteID = siteID, modelID = modelID, periods = Periods,
                   weights = weights, Da = Da)
-  .warnKmaxBeyond(DT, label = paste0("siteID=", siteID))
+  .warnKmaxBeyond(DT, label = paste0("siteID=", siteID), operation = "buildKmaxTable")
   DT
 }
 
@@ -129,12 +129,8 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
   rbindlist(c(Models, Pools))
 }
 
-.isKmaxIdentifier <- function(x) {
-  is.character(x) && length(x) == 1L && !is.na(x) && grepl("^[A-Za-z][A-Za-z0-9_-]*$", x)
-}
-
 .checkKmaxArguments <- function(modelID, siteID, TR, NS, weights) {
-  if (!.isKmaxIdentifier(modelID) || !.isKmaxIdentifier(siteID)) stop("modelID and siteID must be valid identifiers")
+  if (!.isIdentifier(modelID) || !.isIdentifier(siteID)) stop("modelID and siteID must be valid identifiers")
   if (!is.numeric(TR) || !length(TR) || any(!is.finite(TR)) || any(TR <= 0)) {
     stop("TR must contain positive finite return periods")
   }
@@ -168,13 +164,6 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
   Shear
 }
 
-# The demands of a product: the model with exactly `periods` and the MCE
-# with a missing return period.
-.hasKmaxDemands <- function(DT, modelID, periods) {
-  setequal(unique(DT$ID), c(modelID, "MCE")) && setequal(unique(DT$TR[DT$ID == modelID]), periods) &&
-    all(is.na(DT$TR[DT$ID == "MCE"]))
-}
-
 # Relative agreement within 1e-10, the product tolerance of newmark 1.7.1.
 .isSameKmaxNumber <- function(x, y) {
   length(x) == length(y) && all(is.finite(x)) && all(is.finite(y)) &&
@@ -199,7 +188,7 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
     stop("Invalid PGATable schema for siteID=", siteID, ". Expected: ", paste(Columns, collapse = ", "),
          ". Found: ", paste(names(PGA), collapse = ", "))
   }
-  if (!identical(unique(PGA$siteID), siteID) || !.hasKmaxDemands(PGA, modelID, periods) ||
+  if (!identical(unique(PGA$siteID), siteID) || !.hasDemands(PGA, modelID, periods) ||
       anyDuplicated(PGA, by = c("siteID", "ID", "TR", "IDg", "IDm")) ||
       nrow(PGA) != (length(periods) + 1L) * nrow(shear)) {
     stop("PGATable has invalid key or demand x IDg x IDm coverage")
@@ -225,7 +214,7 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
          ". Found: ", paste(names(DT), collapse = ", "))
   }
   Cells <- (length(periods) + 1L) * nrow(shear) * length(weights)
-  if (!identical(unique(DT$siteID), siteID) || !.hasKmaxDemands(DT, modelID, periods) ||
+  if (!identical(unique(DT$siteID), siteID) || !.hasDemands(DT, modelID, periods) ||
       !setequal(unique(DT$IDn), names(weights))) {
     stop("DnDraws has invalid siteID, ID, TR, or IDn vocabulary")
   }
@@ -270,7 +259,7 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
   Levels <- c("mean", sprintf("%.2f", KMAXLEVELS))
   Families <- names(DNFAMILIES)[vapply(DNFAMILIES, function(ids) any(names(weights) %in% ids), logical(1L))]
   Models <- c(names(weights), Families)
-  if (!identical(unique(DT$siteID), siteID) || !.hasKmaxDemands(DT, modelID, periods) ||
+  if (!identical(unique(DT$siteID), siteID) || !.hasDemands(DT, modelID, periods) ||
       !setequal(unique(DT$p), Levels) || !setequal(unique(DT$IDn), Models)) {
     stop("kmaxTable has invalid siteID, ID, TR, p, or IDn vocabulary")
   }
@@ -302,15 +291,15 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
   invisible(DT)
 }
 
-.warnKmaxBeyond <- function(x, label) {
+.warnKmaxBeyond <- function(x, label, operation) {
   Flagged <- x[beyond > 0]
   if (!nrow(Flagged)) return(invisible(NULL))
   Worst <- Flagged[order(-kmax)][1L]
-  warning(label, ": ", nrow(Flagged), "/", nrow(x),
-          " kmax rows use roots beyond sampled support (max beyond=", format(max(Flagged$beyond), digits = 4),
-          "; max kmax=", format(Worst$kmax, digits = 4), " g at siteID=", Worst$siteID,
-          " ID=", Worst$ID, " IDg=", Worst$IDg, " IDm=", Worst$IDm,
-          " IDn=", Worst$IDn, " p=", Worst$p, " Da=", Worst$Da, ")", call. = FALSE)
+  .warn(nrow(Flagged), "/", nrow(x), " kmax rows (", label, ")",
+        " use roots beyond sampled support (max beyond=", format(max(Flagged$beyond), digits = 4),
+        "; max kmax=", format(Worst$kmax, digits = 4), " g at siteID=", Worst$siteID,
+        " ID=", Worst$ID, " IDg=", Worst$IDg, " IDm=", Worst$IDm,
+        " IDn=", Worst$IDn, " p=", Worst$p, " Da=", Worst$Da, ")", operation = operation, unit = label)
   invisible(NULL)
 }
 

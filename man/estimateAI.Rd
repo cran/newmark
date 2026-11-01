@@ -21,11 +21,16 @@ rigid models \code{JB07} and \code{SR08} of \code{\link[=evaluateRigidDisplaceme
 
 \deqn{I_a = PGA^{1.9228}\, e^{2.6109}}
 with PGA in g and \eqn{I_a} in m/s, a median relation without
-dispersion, fitted on rock records (SeVyT 2023 dataset, as recorded in
-\code{newmark} 1.7.1). It is evaluated realization by realization, so a sampled
-intensity stays paired with its PGA.
+dispersion, fitted on the rock records of Verri Kozlowski (2023), as
+recorded in \code{newmark} 1.7.1. It is evaluated realization by realization,
+so a sampled intensity stays paired with its PGA.
 }
 
 \examples{
 estimateAI(PGA = c(0.1, 0.5))
+}
+\references{
+Verri Kozlowski, A. (2023). Modelos Parametricos para la
+Seleccion de Sismos de Diseno en Infraestructura Minera. Seminario de
+Vinculacion y Transferencia (SeVyT) 2023.
 }

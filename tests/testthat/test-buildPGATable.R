@@ -9,6 +9,7 @@
 projectReference <- function() readRDS(test_path("fixtures", "siteResponse-reference.rds"))$project
 
 test_that("buildPGATable rewrites the stored PGATable.csv rows byte for byte", {
+  skip_on_cran()
   Project <- projectReference()
   Table <- buildPGATable(rock = Project$rock, MCE = Project$mce, shear = Project$shear,
                          modelID = "M2V4D", siteID = "CFD", TR = Project$family)
@@ -44,4 +45,25 @@ test_that("inconsistent product inputs fail explicitly", {
                "return periods of TR")
   expect_error(buildPGATable(Project$rock, Project$mce[, TR := 1], Project$shear, "M2V4D", "CFD", Project$family),
                "must not contain TR")
+})
+
+test_that("the mean PGA of a return period is the sum in double of its site components", {
+  # The rock lognormal of the help example at TR 100; summed in long double,
+  # the components of its refined site mixture give each PGA a few units away
+  # in the last place.
+  Rock <- data.table::data.table(ID = "TEST", siteID = "TST", TR = 100, Tn = c(0, 0.2, 1),
+                                 Sa = c(0.3, 0.45, 0.24), Vs30 = 760, Vref = 760)
+  Rock[, `:=`(k = "oq", muLn = log(Sa) - 0.4^2 / 2, sigmaLn = 0.4, w = 1)]
+  Levels <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
+  MCE <- Rock[, .(p = c(sprintf("%.2f", Levels), "mean"), Sa = c(exp(muLn + 0.4 * qnorm(Levels)), Sa)), by = Tn]
+  MCE[, `:=`(ID = "MCE", siteID = "TST", Vs30 = 760, Vref = 760)]
+  Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), VS30 = c(360, 560), Vref = 760,
+                                  level = "mean")
+  Table <- buildPGATable(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100)
+  Expected <- vapply(Shear$VS30, function(v) {
+    Mixture <- refineSiteMixture(Rock[, .(Tn, k, muLn, sigmaLn, w)], VS30 = v, Vref = 760, model = "ST20",
+                                 levels = Levels, orders = c(16L, 32L, 64L, 128L, 256L), tolerance = 2e-3)$mixture
+    Mixture[Tn == 0, Reduce(`+`, w * exp(muLn + sigmaLn^2 / 2))]
+  }, numeric(1L))
+  expect_identical(Table[ID == "TEST", PGA], Expected)
 })

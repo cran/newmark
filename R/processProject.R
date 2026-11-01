@@ -60,7 +60,9 @@
 #'     for subduction) and the 0/1 switches of the displacement models, which
 #'     [selectDisplacementModels()] turns into the weights of the active
 #'     models. `DnTable` and `kmaxTable`.}
-#'   \item{`Mw.gmdp`}{Moment magnitude of the scenarios. `DnTable`.}
+#'   \item{`Mw.gmdp`}{Moment magnitude of the scenarios: one number for every
+#'     demand, or an object that names each return period of `TR.gmdp` and
+#'     `MCE` with its magnitude. `DnTable`.}
 #'   \item{`DaH.gmdp`}{Admissible displacements, distinct positive
 #'     percentages of the height `Hs`. `kmaxTable`.}
 #'   \item{`DN_PARALLEL`, `DN_WORKERS`}{Optional parallel controls of
@@ -337,7 +339,7 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
     error = function(e) stop("Dn_weights and subduction in ", PATH.contract, ": ", conditionMessage(e))
   )
   if ("DnTable" %in% plan$steps) {
-    plan$Mw <- .readNumber(contract, "Mw.gmdp", PATH.contract)
+    plan$Mw <- .readMagnitude(contract, PATH.contract, TR = plan$TR)
     plan$truncation <- .readTruncation(.resolvePath(.readPath(contract, "calc", PATH.contract), plan$root))
     plan$MCE <- file.path(.resolvePath(.readPath(contract, "data", PATH.contract), plan$root), "MCETable.Rds")
     plan$parallel <- if (.hasKey(contract, "DN_PARALLEL")) .readFlag(contract, "DN_PARALLEL", PATH.contract) else TRUE
@@ -412,13 +414,18 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
 # What a dry run reports. Whether a destination already exists is the only
 # observation it makes of the tree it would replace.
 .describePlan <- function(plan) {
-  message("dry run: ", plan$contract)
-  message("steps: ", paste(plan$steps, collapse = ", "))
-  if (length(plan$selected)) message("sites: ", paste(plan$selected, collapse = ", "))
+  .inform("moduleNote", "Dry run of ", plan$contract, operation = "process", phase = "plan", path = plan$contract)
+  .inform("moduleNote", "Steps: ", paste(plan$steps, collapse = ", "), operation = "process", phase = "plan")
+  if (length(plan$selected)) {
+    .inform("moduleNote", "Sites: ", paste(plan$selected, collapse = ", "), operation = "process", phase = "plan")
+  }
   Effects <- plan$destinations[, !"file"]
   set(Effects, j = "action", value = ifelse(file.exists(plan$destinations$file), "replaces", "writes"))
   set(Effects, j = "rows", value = NA_integer_)
-  for (Line in paste0(Effects$step, ": ", Effects$action, " ", Effects$path)) message(Line)
+  for (i in seq_len(nrow(Effects))) {
+    .inform("moduleNote", Effects$step[[i]], " ", Effects$action[[i]], " ", Effects$path[[i]], operation = "process",
+            phase = Effects$step[[i]], path = Effects$path[[i]])
+  }
   Effects
 }
 
@@ -430,8 +437,9 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
   Destinations <- plan$destinations[plan$destinations$step == "ShearTable"]
   .createDirectory(dirname(Destinations$file))
   .publishGroup(ledger, Destinations, list(Shear))
-  message("ShearTable: wrote ShearTable (", nrow(Shear), " rows, seed ",
-          if (is.null(plan$seed)) "none" else plan$seed, ")")
+  .inform("moduleProgress", "ShearTable wrote ShearTable (", nrow(Shear), " rows, seed ",
+          if (is.null(plan$seed)) "none" else plan$seed, ")", operation = "process", phase = "ShearTable",
+          path = Destinations$path, count = nrow(Shear))
 }
 
 # The products of each selected site, published group by group in the order
@@ -453,7 +461,8 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
     Group <- Destinations[Destinations$siteID %in% Site]
     .createDirectory(dirname(Group$file[[1L]]))
     .publishGroup(ledger, Group, Products[Group$product])
-    message("DnTable: wrote site ", Site)
+    .inform("moduleProgress", "DnTable wrote site ", Site, operation = "process", phase = "DnTable", unit = Site,
+            path = Group$path)
   }
   ledger$siteID <- NA_character_
   FILES <- file.path(plan$modelDir, plan$sites, "DnTable.Rds")
@@ -476,8 +485,10 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
     PGA <- .readPGATable(file.path(plan$modelDir, Site, "PGATable.csv"))
     Kmax <- buildKmaxTable(Draws, PGATable = PGA, shear = shear, modelID = plan$model, siteID = Site,
                            TR = plan$TR, NS = plan$NS, weights = plan$weights, DaH = plan$DaH)
-    .publishGroup(ledger, Destinations[Destinations$siteID %in% Site], list(Kmax))
-    message("kmaxTable: wrote site ", Site)
+    Group <- Destinations[Destinations$siteID %in% Site]
+    .publishGroup(ledger, Group, list(Kmax))
+    .inform("moduleProgress", "kmaxTable wrote site ", Site, operation = "process", phase = "kmaxTable", unit = Site,
+            path = Group$path)
   }
   ledger$siteID <- NA_character_
   FILES <- file.path(plan$modelDir, plan$sites, "kmaxTable.Rds")
@@ -516,7 +527,7 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
              " published file(s): ", conditionMessage(e),
              "\npublished: ", paste(Effects$path, collapse = ", "),
              if (length(Kept)) paste0("\nkeep their previous content or remain absent: ", paste(Kept, collapse = ", "))),
-      class = "newmarkPartialPublication", cause = e, effects = Effects, path = Ledger$path
+      class = PARTIALPUBLICATION, cause = e, effects = Effects, path = Ledger$path
     ))
   })
   Ledger$effects
@@ -643,8 +654,24 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
 # the site products under path.tables.
 .readModel <- function(contract, path) {
   x <- .readText(contract, "ID.gmdp", path)
-  if (!.isName(x)) stop(path, " must define ID.gmdp as an identifier: a letter followed by letters, digits, _ or -")
+  if (!.isIdentifier(x)) stop(path, " must define ID.gmdp as an identifier: a letter followed by letters, digits, _ or -")
   x
+}
+
+# Mw.gmdp: one finite positive number for every demand, or an object that
+# names each return period of TR.gmdp and MCE with its magnitude, as
+# buildDnTables() takes it. An object of one member names no such set, since
+# TR.gmdp holds at least one return period.
+.readMagnitude <- function(contract, path, TR) {
+  x <- .readValue(contract, "Mw.gmdp", path)
+  if (is.numeric(x) && length(x) == 1L && is.finite(x) && x > 0) return(as.numeric(x))
+  Mw <- if (.isObject(x) && all(vapply(x, function(m) is.numeric(m) && length(m) == 1L, logical(1L)))) {
+    vapply(x, as.numeric, numeric(1L))
+  }
+  if (length(Mw) < 2L || !.isMagnitude(Mw, TR)) {
+    stop(path, " must define Mw.gmdp as one magnitude or one magnitude per demand (each return period of TR.gmdp and MCE)")
+  }
+  Mw
 }
 
 # The numeric columns as doubles, so a geometry spelled without decimal
@@ -708,7 +735,7 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
     stop("missing input UHSRock.Rds (a hazard product of the project): no site directory under ", rockDir,
          " holds one")
   }
-  Bad <- Sites[!vapply(Sites, .isName, logical(1L))]
+  Bad <- Sites[!vapply(Sites, .isIdentifier, logical(1L))]
   if (length(Bad)) stop("invalid site directory names under ", rockDir, ": ", paste(Bad, collapse = ", "))
   Sites
 }

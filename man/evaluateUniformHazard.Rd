@@ -41,6 +41,6 @@ a mean curve is not, in general, the mean of the ordinates.
 }
 
 \examples{
-Curves <- data.frame(ID = "A", TR = c(50, 500, 5000), Sa = c(0.05, 0.2, 0.6))
-evaluateUniformHazard(Curves, TR = c(100, 2475), by = "ID")
+# The rows of one period Tn form one hazard curve.
+evaluateUniformHazard(VancouverSpectra, TR = c(100, 2475), by = "Tn")
 }

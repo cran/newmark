@@ -43,7 +43,7 @@ readHazardWorkbook <- function(file, IT) {
     }
     COLS <- setdiff(names(DT), "Tn")
     if (!length(COLS)) {
-      warning("No measure columns in sheet '", Sheet, "'. Skipping.")
+      .warn("No measure columns in sheet '", Sheet, "'. Skipping.", operation = "readHazardWorkbook", path = file)
       return(NULL)
     }
     DT <- melt(DT, id.vars = "Tn", measure.vars = COLS, variable.name = "Sa", value.name = "AEP",

@@ -88,7 +88,7 @@ integrateSiteMixture <- function(mixture, VS30, Vref, model, order) {
     )
   })
   OUT <- rbindlist(l = LIST, use.names = TRUE)
-  OUT[, w := w / sum(w), by = Tn]
+  OUT[, w := w / Reduce(`+`, w), by = Tn]
   .checkMixture(OUT)
 }
 
@@ -96,7 +96,7 @@ integrateSiteMixture <- function(mixture, VS30, Vref, model, order) {
 # eigenvalues of the Golub-Welsch Jacobi matrix (off-diagonal sqrt(i / 2));
 # weights are 1 / sum_j h_j(x)^2 over the orthonormal Hermite polynomials,
 # normalized to sum one, so sum(w * f(mu + sqrt(2) * sigma * x)) estimates
-# E[f(Y)] for Y ~ N(mu, sigma).
+# E[f(Y)] for Y ~ N(mu, sigma); the weight sum avoids long double.
 .gaussHermiteRule <- function(n) {
   i <- seq_len(n - 1L)
   Jacobi <- matrix(data = 0, nrow = n, ncol = n)
@@ -119,7 +119,7 @@ integrateSiteMixture <- function(mixture, VS30, Vref, model, order) {
   if (any(!is.finite(Weights) | Weights <= 0) || sum(Weights) <= 0) {
     stop("Gauss-Hermite weights of order ", n, " are not representable")
   }
-  list(x = Nodes, w = Weights / sum(Weights))
+  list(x = Nodes, w = Weights / Reduce(`+`, Weights))
 }
 
 # The analytic mixture contract: the five columns, one row per (Tn, k),

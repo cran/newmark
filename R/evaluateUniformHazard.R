@@ -27,8 +27,8 @@
 #'   points stops the call.
 #' @export
 #' @examples
-#' Curves <- data.frame(ID = "A", TR = c(50, 500, 5000), Sa = c(0.05, 0.2, 0.6))
-#' evaluateUniformHazard(Curves, TR = c(100, 2475), by = "ID")
+#' # The rows of one period Tn form one hazard curve.
+#' evaluateUniformHazard(VancouverSpectra, TR = c(100, 2475), by = "Tn")
 evaluateUniformHazard <- function(curves, TR, by) {
   if (!is.character(by) || anyDuplicated(by) || any(by %in% c("TR", "Sa"))) {
     stop("by must name distinct columns other than TR and Sa")
@@ -54,7 +54,7 @@ evaluateUniformHazard <- function(curves, TR, by) {
   if (anyDuplicated(DT$TR)) {
     DT <- DT[, .(Sa = max(Sa), nSa = uniqueN(signif(Sa, 12))), by = TR]
     if (any(DT$nSa > 1L)) {
-      message(">> Collapsing duplicate TR nodes by keeping max Sa in ", Label, ".")
+      .inform("moduleNote", "Collapsing duplicate TR nodes by keeping max Sa in ", Label, ".", operation = "evaluateUniformHazard")
     }
     DT <- DT[, .(TR, Sa)]
     setorder(DT, TR)

@@ -85,7 +85,7 @@ listProjectTables <- function(file, root) {
 .listProductSites <- function(plan) {
   if (is.null(plan$model)) return(character())
   DIRS <- list.dirs(plan$modelDir, recursive = FALSE, full.names = FALSE)
-  sort(DIRS[vapply(DIRS, .isName, logical(1L))])
+  sort(DIRS[vapply(DIRS, .isIdentifier, logical(1L))])
 }
 
 # A product as its step wrote it: an RDS file read with readRDS(), the CSV

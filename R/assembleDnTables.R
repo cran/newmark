@@ -51,7 +51,7 @@
 assembleDnTables <- function(tables, shear, weights, modelID, TR, Vref) {
   IDs <- names(tables)
   if (!is.list(tables) || !length(tables) || is.null(IDs) || anyDuplicated(IDs) ||
-      !all(vapply(IDs, .isName, logical(1L)))) {
+      !all(vapply(IDs, .isIdentifier, logical(1L)))) {
     stop("tables must be a named list with unique site identifiers")
   }
   Shear <- .checkDnShear(shear, Vref)
@@ -63,7 +63,7 @@ assembleDnTables <- function(tables, shear, weights, modelID, TR, Vref) {
 }
 
 # Material-averaged curves on a common log grid per site, demand, geometry,
-# model and level, for display.
+# model and level, for display, averaged in one pass in double as GForce's mean.
 .buildDnPlotTable <- function(DT) {
   KEY <- c("siteID", "ID", "TR", "IDg", "IDn", "p")
   OUT <- DT[Dn > DNPLOTMIN, {
@@ -76,9 +76,9 @@ assembleDnTables <- function(tables, shear, weights, modelID, TR, Vref) {
       } else {
         ORDER <- order(ky[OK])
         data.table(ky = X, Dn = exp(stats::approx(log(ky[OK][ORDER]), log(Dn[OK][ORDER]), log(X),
-                                                  rule = 1, ties = mean)$y))
+                                                  rule = 1, ties = .portableMean)$y))
       }
-    }, by = IDm][is.finite(Dn), .(Dn = mean(Dn)), by = ky]
+    }, by = IDm][is.finite(Dn), .(Dn = Reduce(`+`, Dn) / length(Dn)), by = ky]
   }, by = KEY]
   OUT <- OUT[Dn > DNPLOTMIN]
   setkeyv(OUT, c(KEY, "ky"))

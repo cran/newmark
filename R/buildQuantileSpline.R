@@ -54,8 +54,8 @@ buildQuantileSpline <- function(quantiles) {
     stop("buildQuantileSpline needs 3 or more quantile rows")
   }
   if (anyDuplicated(DT$p)) {
-    warning("quantiles has duplicate p rows; the spline collapses them. ",
-            "Select one spectrum slice before building the quantile function.", call. = FALSE)
+    .warn("quantiles has duplicate p rows; the spline collapses them. ",
+          "Select one spectrum slice before building the quantile function.", operation = "buildQuantileSpline")
   }
   COLS <- setdiff(names(DT), c("p", "Sa"))
   if (length(COLS)) {

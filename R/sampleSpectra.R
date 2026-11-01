@@ -169,13 +169,18 @@ sampleSpectra <- function(spectrum, Tn, correlation, NS, zTrunc) {
   OUT
 }
 
-# The two passes of mean() accumulated in double, as mean() does only where the
-# platform has no long double; mean() takes over when the result is not
-# finite, as when the first sum overflows.
+# R's arithmetic mean with every accumulation performed in double.
 .portableMean <- function(x) {
-  s <- Reduce(`+`, x) / length(x)
-  s <- s + Reduce(`+`, x - s) / length(x)
-  if (!is.finite(s)) return(mean(x))
+  n <- length(x)
+  if (!n) return(NaN)
+  if (is.integer(x)) return(Reduce(`+`, as.double(x), init = 0) / n)
+  s <- Reduce(`+`, x, init = 0)
+  if (is.finite(s)) {
+    s <- s / n
+    return(s + Reduce(`+`, x - s, init = 0) / n)
+  }
+  s <- Reduce(`+`, x / n, init = 0)
+  if (is.finite(s)) s <- s + Reduce(`+`, (x - s) / n, init = 0)
   s
 }
 

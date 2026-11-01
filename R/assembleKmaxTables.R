@@ -37,7 +37,7 @@
 assembleKmaxTables <- function(tables, shear, modelID, TR, weights, DaH) {
   IDs <- names(tables)
   if (!is.list(tables) || !length(tables) || is.null(IDs) || anyDuplicated(IDs) ||
-      !all(vapply(IDs, .isKmaxIdentifier, logical(1L)))) {
+      !all(vapply(IDs, .isIdentifier, logical(1L)))) {
     stop("tables must be a named list with unique site identifiers")
   }
   Problem <- .diagnoseKmaxLevels(DaH, shear)
@@ -51,7 +51,7 @@ assembleKmaxTables <- function(tables, shear, modelID, TR, weights, DaH) {
                     modelID = modelID, periods = TR, weights = weights, Da = Da)
   }))
   setkeyv(DT, KMAXKEY)
-  .warnKmaxBeyond(DT, label = "global")
+  .warnKmaxBeyond(DT, label = "global", operation = "assembleKmaxTables")
   DT
 }
 
