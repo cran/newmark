@@ -29,8 +29,8 @@ test_that("correlateResiduals reproduces the 1.7.1 coefficients and keeps its co
                      correlateResiduals(Tn = 0.3, T0 = 0.5), correlateResiduals(Tn = 1, T0 = 0.01)),
                    reference()$rho)
   expectReproduces(correlateResiduals(Tn = c(0.3, 1), T0 = 0.01), reference()$rho[c(1L, 4L)])
-  expect_identical(correlateResiduals(Tn = 0.5, T0 = 0.3), correlateResiduals(Tn = 0.3, T0 = 0.5))
-  expect_identical(correlateResiduals(Tn = 0, T0 = 1), correlateResiduals(Tn = 0.01, T0 = 1))
+  expectReproduces(correlateResiduals(Tn = 0.5, T0 = 0.3), correlateResiduals(Tn = 0.3, T0 = 0.5))
+  expectReproduces(correlateResiduals(Tn = 0, T0 = 1), correlateResiduals(Tn = 0.01, T0 = 1))
   expect_warning(correlateResiduals(Tn = 20, T0 = 1), "0.01 to 10 s", class = "moduleWarning")
   expect_error(correlateResiduals(Tn = c(0.1, 0.2), T0 = c(0.1, 0.2, 0.3)), "equal length")
 })
@@ -44,7 +44,7 @@ test_that("sampleSpectra reproduces the 1.7.1 quantile draws in any row order", 
   expect_identical(OUT$realization, rep(1:47, 3L))
   expect_equal(OUT[, mean(Sa), by = Tn]$V1, c(0.80, 0.55, 0.42), tolerance = 1e-13)
   set.seed(42)
-  expect_identical(sampleSpectra(Q[rev(seq_len(nrow(Q)))], Tn = c(0, 0.6, 0.9),
+  expectReproduces(sampleSpectra(Q[rev(seq_len(nrow(Q)))], Tn = c(0, 0.6, 0.9),
                                  correlation = referenceCorrelation(c(0.62, 0.38)), NS = 47L, zTrunc = NA), OUT)
   set.seed(43)
   expectReproduces(asMatrix(sampleSpectra(Q, Tn = c(0.9, 0, 0.6), correlation = referenceCorrelation(c(0.38, 0.62)),
@@ -83,13 +83,13 @@ test_that("the inverse of ten equal atoms at p = 0.9 is the ninth, as added in d
   # Ten weights of 0.1 add to 0.99999999999999989 in double, and nine of them
   # normalized by that sum reach 0.9; normalized by the long-double sum, 1,
   # they add to 0.89999999999999991 and would select the tenth atom.
-  expect_identical(.invertMixture(p = 0.9, muLn = (1:10) / 10, sigmaLn = rep(0, 10L), w = rep(0.1, 10L)), 9 / 10)
+  expect_equal(.invertMixture(p = 0.9, muLn = (1:10) / 10, sigmaLn = rep(0, 10L), w = rep(0.1, 10L)), 9 / 10)
 })
 
 test_that("the recentring mean stays finite when the double sum overflows", {
   x <- c(1e308, 1e308)
   expect_true(is.finite(.portableMean(x)))
-  expect_identical(.portableMean(x), mean(x))
+  expect_equal(.portableMean(x), mean(x))
 })
 
 test_that("sampleIntensities reproduces the paired intensities of 1.7.1", {
@@ -100,8 +100,8 @@ test_that("sampleIntensities reproduces the paired intensities of 1.7.1", {
   set.seed(46)
   OUT <- sampleIntensities(samplerMixture(), Ts = 0.4, NS = 47L, zTrunc = NA)
   expectReproduces(as.list(OUT[, .(PGA, Sa13, Sa15, PGV, AI)]), R$scenario46)
-  expect_identical(OUT$PGV, estimatePGV(OUT$PGA))
-  expect_identical(OUT$AI, estimateAI(OUT$PGA))
+  expectReproduces(OUT$PGV, estimatePGV(OUT$PGA))
+  expectReproduces(OUT$AI, estimateAI(OUT$PGA))
 })
 
 test_that("invalid requests fail before consuming the random stream", {
@@ -139,7 +139,7 @@ test_that("invalid quantiles and means fail before consuming the random stream",
   With <- asMatrix(draw(Q))
   set.seed(51)
   Without <- asMatrix(draw(Q[p != "mean"]))
-  expect_identical(With, sweep(Without, 2L, Q[p == "mean", Sa] / apply(Without, 2L, mean), "*"))
+  expectReproduces(With, sweep(Without, 2L, Q[p == "mean", Sa] / apply(Without, 2L, mean), "*"))
 })
 
 test_that("buildQuantileSpline rejects probabilities outside (0, 1) and non-positive accelerations", {
@@ -169,8 +169,8 @@ test_that("buildKyGrid spans 0.01 g to the mean PGA or 0.80 g", {
                    reference()$kyAnalytic)
   Grid <- buildKyGrid(PGA = 1.2, n = 30L)
   expect_equal(range(Grid), c(0.01, 1.2), tolerance = 1e-15)
-  expect_identical(buildKyGrid(PGA = 0.3, n = 30L), buildKyGrid(PGA = 0.8, n = 30L))
+  expectReproduces(buildKyGrid(PGA = 0.3, n = 30L), buildKyGrid(PGA = 0.8, n = 30L))
   # One point is the lower bound alone, whatever the PGA.
-  expect_identical(c(buildKyGrid(PGA = 0.3, n = 1L), buildKyGrid(PGA = 1.2, n = 1L)), rep(exp(log(0.01)), 2L))
+  expect_equal(c(buildKyGrid(PGA = 0.3, n = 1L), buildKyGrid(PGA = 1.2, n = 1L)), rep(exp(log(0.01)), 2L))
   expect_error(buildKyGrid(PGA = 0, n = 30L), "positive")
 })

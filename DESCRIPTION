@@ -1,7 +1,7 @@
 Package: newmark
 Type: Package
 Title: Uncertainty Analysis in Dynamic Site and Slope Response
-Version: 1.10.0
+Version: 1.14.0
 Authors@R: 
     person(given = "Alejandro",
            family = "Verri Kozlowski",
@@ -17,20 +17,21 @@ Description: Estimates the seismic response of sites and slopes from the
     ground motion is represented by Monte Carlo samples. Every result is
     reported with its representative value, its applicable quantiles or
     dispersion, and the population or conditioning to which it refers.
-License: MIT + file LICENSE
+License: AGPL (>= 3)
 Encoding: UTF-8
 Language: en-US
 LazyData: true
 LazyDataCompression: xz
 Depends: R (>= 4.2)
-Imports: data.table, jsonlite, mvtnorm, parallel, stats, utils
+Imports: data.table, jsonlite, mvtnorm (>= 1.2-3), parallel, stats,
+        utils
 Suggests: testthat (>= 3.0.0), knitr, readxl, rmarkdown
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.1
 URL: https://kanameishi.github.io/newmark/
 NeedsCompilation: no
-Packaged: 2026-10-31 16:28:31 UTC; averrik
+Packaged: 2026-11-11 21:21:37 UTC; averrik
 Author: Alejandro Verri Kozlowski [aut, cre, cph]
 Maintainer: Alejandro Verri Kozlowski <averri@fi.uba.ar>
 Repository: CRAN
-Date/Publication: 2026-11-01 12:40:29 UTC
+Date/Publication: 2026-11-11 22:10:02 UTC

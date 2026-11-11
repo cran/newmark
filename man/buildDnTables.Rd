@@ -2,7 +2,7 @@
 % Please edit documentation in R/buildDnTables.R
 \name{buildDnTables}
 \alias{buildDnTables}
-\title{Site displacement products of release 1.7.1}
+\title{Site displacement tables with soil-column uncertainty}
 \usage{
 buildDnTables(
   rock,
@@ -16,7 +16,8 @@ buildDnTables(
   NS,
   weights,
   zTrunc,
-  workers
+  workers,
+  draws
 )
 }
 \arguments{
@@ -28,7 +29,8 @@ per return period at Vs30 = Vref = 760 m/s (\code{ID}, \code{siteID}, \code{TR},
 \item{MCE}{The \code{MCETable}: rock quantiles and mean of the MCE (\code{ID},
 \code{siteID}, \code{Tn}, \code{p}, \code{Sa}, \code{Vs30}, \code{Vref}), without \code{TR}.}
 
-\item{shear}{The \code{ShearTable}, of which the \code{mean} rows are used.}
+\item{shear}{The \code{ShearTable}, whose \code{mean} rows define the cell
+reference properties and common ky grid.}
 
 \item{modelID}{Identifier of the probabilistic demand model.}
 
@@ -53,36 +55,55 @@ standard deviations.}
 \item{workers}{Number of forked processes that evaluate the pairs of a
 demand after their draws; 1 evaluates them in this process. The
 products do not depend on it.}
+
+\item{draws}{The \code{ShearDraws} table with \code{IDg}, \code{IDm}, \code{realization},
+\code{Ts}, \code{VS30} and \code{Vref}. Each pair of \code{shear} must be represented,
+with realization identifiers from 1 without gaps or duplicates.
+Its columns are sampled in order and reused cyclically until all \code{NS}
+movements are assigned; \code{NS} remains the total per pair and demand.}
 }
 \value{
 A list with the keyed data.tables \code{DnDraws} (one row per demand,
-pair, model, realization and yield acceleration, with the sampled PGA
-\code{PGA.s}) and \code{DnTable} (quantiles and mean of every model and family).
+pair, model, realization and yield acceleration, with the integer draw
+identifier \code{realization} and the sampled PGA \code{PGA.s}) and \code{DnTable}
+(quantiles and mean of every model and family). Stored draws whose
+identifier is named \code{s} require that column to be renamed to
+\code{realization} before passing them to the draw consumers.
 The rows of the flexible models (\code{BT07}, \code{BM17}, \code{BM19}) are conditional
 on a nonzero displacement, as \code{\link[=evaluateFlexibleDisplacement]{evaluateFlexibleDisplacement()}}
 documents; the probability of zero displacement is not represented.
 The inputs are not modified.
 }
 \description{
-Compatibility route that reproduces, value for value, the displacement
-products that the dn step of \code{newmark} 1.7.1 writes for one site
-(\code{DnDraws} and \code{DnTable}), so that the installed library can serve as
-comparison oracle while the calculations migrate. The third product of
-that step, \code{PGATable}, belongs to the site-response family and is rebuilt
-by \code{\link[=buildPGATable]{buildPGATable()}} from the same inputs. For every return period
+Builds \code{DnDraws} and \code{DnTable} from the paired Ts and VS30 values of
+\code{ShearDraws}. \code{PGATable} is built separately by \code{\link[=buildPGATable]{buildPGATable()}} on the
+mean rows of \code{ShearTable}. For every return period
 of the probabilistic demand and for the MCE, and for every geometry and
-material pair of the shear table, it amplifies the rock demand to the
-VS30 of the pair, samples the scenario intensities with
+material pair, it amplifies the rock demand to the VS30 of each column
+rounded to the nearest 1 m/s for spectrum lookup,
+samples its scenario intensities at that column's Ts with
 \code{\link[=sampleIntensities]{sampleIntensities()}}, evaluates the active models with
 \code{\link[=evaluateDisplacements]{evaluateDisplacements()}} and summarizes them with
 \code{\link[=summarizeDisplacements]{summarizeDisplacements()}} and, for the families \code{ensemble}, \code{rigid} and
 \code{flexible}, the weighted summary of \code{\link[=summarizeEnsemble]{summarizeEnsemble()}} with the
 quantile of \code{newmark} 1.7.1 (see below).
 }
-\section{Semantics reproduced from \code{newmark} 1.7.1}{
+\section{Population and summaries}{
 
-Only the \code{mean} rows of the shear table enter, ordered by \code{IDg} and
-\code{IDm}; their \code{Ts} supplies the fundamental period used by the sliding-mass models, and their \code{VS30} supplies the site velocity.
+Pairs are ordered by \code{IDg} and \code{IDm}. Within each pair, the \code{NS}
+movements cycle through the columns in increasing \code{realization} order;
+200 movements and 100 columns give two movements per column. Each
+movement uses the same column for site response, intensity sampling and
+displacement evaluation, and keeps its identity over models and ky.
+Each measure (PGA, Sa13 and Sa15) is centered once over the complete
+\code{NS} sample on the column means weighted by their assigned movements.
+The column subsets are not centered separately. Innovations are drawn in
+movement order, so identical columns reproduce a single-column sample.
+The \code{mean} rows of \code{ShearTable} supply the reference \code{Ts} and \code{Vs30}
+metadata in \code{DnTable} and the PGA from which its common ky grid is built.
+Site response for a mean row uses that row's stored VS30. Column spectrum
+lookup uses \code{round(VS30)}, with a 1 m/s step; \code{ShearDraws} and the table
+reference metadata retain their stored values.
 The probabilistic demands sample the analytic mixture of the amplified
 spectrum, truncated at \code{zTrunc} like the hazard calculation; the MCE
 samples its amplified quantile spectrum untruncated. The yield grid is
@@ -102,7 +123,7 @@ of \code{Hmisc::wtd.quantile()} as 1.7.1 called it: once the pool of one yield
 acceleration holds a tie, every pooled value is read back from its
 15-significant-digit text before the quantile, while the mean uses the
 exact values; \code{\link[=summarizeEnsemble]{summarizeEnsemble()}}, the general summary, merges ties at
-full precision. Nothing else is rounded.
+full precision.
 }
 
 \examples{
@@ -119,8 +140,10 @@ MCE <- Rock[, .(p = c(sprintf("\%.2f", Levels), "mean"),
 MCE[, `:=`(ID = "MCE", siteID = "TST", Vs30 = 760, Vref = 760)]
 Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), VS30 = c(360, 560),
                                 Ts = 0.3, Vref = 760, level = "mean")
+Draws <- Shear[, .(IDg, IDm, realization = 1L, Ts, VS30, Vref)]
 Site <- buildDnTables(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
-                      Mw = 7, NS = 2, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3, workers = 1)
+                      Mw = 7, NS = 2, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3,
+                      workers = 1, draws = Draws)
 Site$DnTable[IDn == "ensemble" & p == "0.50" & ky < 0.02]
 }
 }

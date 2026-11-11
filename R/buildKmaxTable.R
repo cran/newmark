@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Yield-coefficient table of release 1.7.1 from displacement realizations
 #'
 #' Compatibility route that reproduces, byte for byte once saved with
@@ -37,7 +41,7 @@
 #' rely on roots beyond the stored grid and the largest such `kmax`.
 #'
 #' @param draws The `DnDraws` product of the site: `IDg`, `IDm`, `ID`,
-#'   `TR`, `ky`, `s`, `PGA.s`, `IDn`, `Dn`, `siteID` and `units.Dn`, in this
+#'   `TR`, `ky`, `realization`, `PGA.s`, `IDn`, `Dn`, `siteID` and `units.Dn`, in this
 #'   order, the realizations of one cell sharing one `ky` grid.
 #' @param PGATable The `PGATable` product of the site as read back from its CSV:
 #'   `IDg`, `IDm`, `ID`, `TR`, `PGA`, `Vs30`, `siteID` and `units.PGA`, in this order, with `TR`
@@ -77,7 +81,7 @@ buildKmaxTable <- function(draws, PGATable, shear, modelID, siteID, TR, NS, weig
   .checkKmaxDraws(Draws, shear = Shear, PGA = PGA, siteID = siteID, modelID = modelID, periods = Periods,
                   weights = weights, NS = NS)
   Rows <- Draws[, .summarizeKmaxScenario(.SD, weights = weights, Da = Da), by = .(ID, TR, IDg, IDm),
-                .SDcols = c("ky", "s", "PGA.s", "Dn", "IDn")]
+                .SDcols = c("ky", "realization", "PGA.s", "Dn", "IDn")]
   Rows[PGA, on = .(ID, TR, IDg, IDm), PGA := i.PGA]
   Rows[Shear, on = .(IDg, IDm), `:=`(Ts = i.Ts, Vs30 = i.VS30)]
   # Built by one j call, so the attributes serialize in the order of the
@@ -109,12 +113,12 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
   if (length(Missing)) stop("kmax draws are missing positive-weight models: ", paste(Missing, collapse = ", "))
   Roots <- rbindlist(lapply(names(weights), function(m) {
     Curves <- draws[IDn == m]
-    S <- sort(unique(Curves$s))
+    S <- sort(unique(Curves$realization))
     Ky <- sort(unique(Curves$ky))
     Dn <- matrix(NA_real_, nrow = length(S), ncol = length(Ky))
-    Dn[cbind(match(Curves$s, S), match(Curves$ky, Ky))] <- Curves$Dn
+    Dn[cbind(match(Curves$realization, S), match(Curves$ky, Ky))] <- Curves$Dn
     if (anyNA(Dn)) stop("the realizations of model ", m, " in one cell do not share one ky grid")
-    solveKmax(ky = Ky, Dn = Dn, PGA = Curves$PGA.s[match(S, Curves$s)], model = m, Da = Da)
+    solveKmax(ky = Ky, Dn = Dn, PGA = Curves$PGA.s[match(S, Curves$realization)], model = m, Da = Da)
   }))
   Models <- lapply(names(weights), function(m) {
     .poolKmax(Roots[IDn == m], weights = stats::setNames(1, m), levels = KMAXLEVELS,
@@ -208,7 +212,7 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
 # 0.01 g to max(PGA, 0.8) g of its cell, one sampled PGA per realization and
 # NS realizations of every active model in every cell.
 .checkKmaxDraws <- function(DT, shear, PGA, siteID, modelID, periods, weights, NS) {
-  Columns <- c("IDg", "IDm", "ID", "TR", "ky", "s", "PGA.s", "IDn", "Dn", "siteID", "units.Dn")
+  Columns <- c("IDg", "IDm", "ID", "TR", "ky", "realization", "PGA.s", "IDn", "Dn", "siteID", "units.Dn")
   if (!identical(names(DT), Columns)) {
     stop("Invalid DnDraws schema for siteID=", siteID, ". Expected: ", paste(Columns, collapse = ", "),
          ". Found: ", paste(names(DT), collapse = ", "))
@@ -220,25 +224,25 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
   }
   if (anyNA(DT$IDg) || anyNA(DT$IDm) || anyNA(DT$ID) || anyNA(DT$IDn) || anyNA(DT$siteID) ||
       any(!nzchar(DT$IDg)) || any(!nzchar(DT$IDm)) || any(!is.finite(DT$ky)) || any(DT$ky <= 0) ||
-      any(!is.finite(DT$s)) || any(DT$s != as.integer(DT$s)) || any(!is.finite(DT$PGA.s)) ||
+      any(!is.finite(DT$realization)) || any(DT$realization != as.integer(DT$realization)) || any(!is.finite(DT$PGA.s)) ||
       any(DT$PGA.s <= 0) || any(!is.finite(DT$Dn)) || any(DT$Dn < 0) || any(DT$units.Dn != "cm")) {
     stop("DnDraws has invalid identifiers, numerical values, or units")
   }
-  if (!setequal(unique(DT$s), seq_len(NS))) stop("DnDraws simulation indices do not match NS")
-  if (any(DT[, uniqueN(PGA.s), by = .(ID, TR, IDg, IDm, s)]$V1 != 1L)) {
+  if (!setequal(unique(DT$realization), seq_len(NS))) stop("DnDraws simulation indices do not match NS")
+  if (any(DT[, uniqueN(PGA.s), by = .(ID, TR, IDg, IDm, realization)]$V1 != 1L)) {
     stop("DnDraws PGA.s must be constant within each sampled demand")
   }
-  if (anyDuplicated(DT, by = c("siteID", "ID", "TR", "IDg", "IDm", "IDn", "s", "ky"))) {
+  if (anyDuplicated(DT, by = c("siteID", "ID", "TR", "IDg", "IDm", "IDn", "realization", "ky"))) {
     stop("DnDraws key is duplicated for siteID=", siteID)
   }
   if (nrow(DT) != Cells * NS * 30L) {
     stop("DnDraws row count mismatch for siteID=", siteID, ": expected ", Cells * NS * 30L, ", found ", nrow(DT))
   }
-  Curves <- DT[, .(n = .N, nky = uniqueN(ky), ky.min = min(ky), ky.max = max(ky)), by = .(ID, TR, IDg, IDm, IDn, s)]
+  Curves <- DT[, .(n = .N, nky = uniqueN(ky), ky.min = min(ky), ky.max = max(ky)), by = .(ID, TR, IDg, IDm, IDn, realization)]
   if (any(Curves$n != 30L) || any(Curves$nky != 30L)) {
     stop("DnDraws does not have 30 unique ky values per simulation curve")
   }
-  Counts <- Curves[, .(ns = uniqueN(s)), by = .(ID, TR, IDg, IDm, IDn)]
+  Counts <- Curves[, .(ns = uniqueN(realization)), by = .(ID, TR, IDg, IDm, IDn)]
   if (any(Counts$ns != NS) || nrow(Counts) != Cells) {
     stop("DnDraws does not have NS curves for every demand x IDg x IDm x IDn")
   }
@@ -336,7 +340,7 @@ KMAXLEVELS <- c(0.05, 0.10, 0.16, 0.50, 0.84, 0.90, 0.95)
 
 # Names resolved by data.table inside the kmax family.
 utils::globalVariables(c(
-  ".", "ky", "s", "Dn", "IDn", "PGA.s", "kmax", "beyond", "p", "ID", "TR", "IDg", "IDm", "Da",
+  ".", "ky", "realization", "Dn", "IDn", "PGA.s", "kmax", "beyond", "p", "ID", "TR", "IDg", "IDm", "Da",
   "PGA", "Ts", "Vs30", "VS30", "level", "i.PGA", "i.Ts", "i.VS30"
 ))
 
@@ -356,8 +360,9 @@ utils::globalVariables(c(
 #' Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), Hs = c(10, 120),
 #'                                 VS30 = c(360, 560), Ts = 0.3, Vref = 760, level = "mean")
 #' Weights <- c(AM88 = 1, BM19 = 1)
+#' Draws <- Shear[, .(IDg, IDm, realization = 1L, Ts, VS30, Vref)]
 #' Site <- buildDnTables(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
-#'                       Mw = 7, NS = 2, weights = Weights, zTrunc = 3, workers = 1)
+#'                       Mw = 7, NS = 2, weights = Weights, zTrunc = 3, workers = 1, draws = Draws)
 #' PGATable <- buildPGATable(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100)
 #' Kmax <- buildKmaxTable(Site$DnDraws, PGATable = PGATable, shear = Shear, modelID = "TEST",
 #'                        siteID = "TST", TR = 100, NS = 2, weights = Weights, DaH = c(0.05, 0.1))

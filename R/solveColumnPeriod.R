@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Fundamental period of a layered soil profile as a Galerkin eigenvalue problem
 #'
 #' Solves the fundamental period of the soil column on rigid base, the site

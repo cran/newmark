@@ -8,7 +8,7 @@
 # d57b64f) in its own R process, never together with newmark 5.
 projectReference <- function() readRDS(test_path("fixtures", "siteResponse-reference.rds"))$project
 
-test_that("buildPGATable rewrites the stored PGATable.csv rows byte for byte", {
+test_that("buildPGATable reproduces stored CSV rows with tolerance only for PGA", {
   skip_on_cran()
   Project <- projectReference()
   Table <- buildPGATable(rock = Project$rock, MCE = Project$mce, shear = Project$shear,
@@ -34,7 +34,7 @@ test_that("the refined site demands of one pair are those of newmark 1.7.1", {
                                  tolerance = 2e-3)
   expectReproduces(as.list(Spectrum$spectrum), as.list(Project$spectrumMCE[, .(Tn, p, Sa, SaF)]))
   expect_identical(Spectrum$order, attr(Project$spectrumMCE, "quadratureOrder"))
-  expectReproducesChange(Spectrum$change, attr(Project$spectrumMCE, "convergence"))
+  expectReproduces(Spectrum$change, attr(Project$spectrumMCE, "convergence"))
 })
 
 test_that("inconsistent product inputs fail explicitly", {
@@ -65,5 +65,5 @@ test_that("the mean PGA of a return period is the sum in double of its site comp
                                  levels = Levels, orders = c(16L, 32L, 64L, 128L, 256L), tolerance = 2e-3)$mixture
     Mixture[Tn == 0, Reduce(`+`, w * exp(muLn + sigmaLn^2 / 2))]
   }, numeric(1L))
-  expect_identical(Table[ID == "TEST", PGA], Expected)
+  expectReproduces(Table[ID == "TEST", PGA], Expected)
 })

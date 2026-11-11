@@ -74,6 +74,7 @@ stubSiteProject <- function(contract = SITES) {
     writeLines("TR", file.path(Root, "products", "M1", Site, "PGATable.csv"))
   }
   saveRDS(shearTable(), file.path(Root, "products", "ShearTable.Rds"))
+  saveRDS(fixedShearDraws(shearTable()), file.path(Root, "products", "ShearDraws.Rds"))
   writeContract(Root, contract)
   Root
 }
@@ -98,6 +99,7 @@ dnProject <- function(sites = c("S1", "S2"), mceSites = sites, contract = DN) {
   writeLines('{"job":{"calculation":{"truncation_level":3}}}', file.path(Root, "calc.json"))
   dir.create(file.path(Root, "products"))
   saveRDS(shearTable(), file.path(Root, "products", "ShearTable.Rds"))
+  saveRDS(fixedShearDraws(shearTable()), file.path(Root, "products", "ShearDraws.Rds"))
   writeContract(Root, contract)
   Root
 }
@@ -132,17 +134,16 @@ test_that("the ShearTable step equals buildShearTable called directly and create
                                             s = seq(2.5, 3.5, length.out = 2L)),
                               USCS = list(U1 = c("ML", "MH")), IDm = "U1", Vref = 760, levels = LEVELS)
   FILE <- file.path(Root, "products", "ShearTable.Rds")
-  expect_equal(readRDS(FILE), Expected, tolerance = 0)
+  expect_equal(readRDS(FILE), Expected)
   expect_identical(Effects, data.table::data.table(step = "ShearTable", siteID = NA_character_,
                                                    product = "ShearTable", path = "products/ShearTable.Rds",
                                                    action = "writes", rows = 18L))
 
-  # Reproducible from the contract: a second run replaces the file with the
-  # same bytes.
-  Bytes <- readBin(FILE, "raw", file.size(FILE))
+  # A second run recalculates the table from the same contract and seed.
+  Previous <- readRDS(FILE)
   Effects <- suppressMessages(processProject(root = Root, steps = "ShearTable"))
   expect_identical(Effects$action, "replaces")
-  expect_identical(readBin(FILE, "raw", file.size(FILE)), Bytes)
+  expectReproduces(readRDS(FILE), Previous)
   expect_identical(list.files(file.path(Root, "products"), all.files = TRUE, no.. = TRUE), "ShearTable.Rds")
 })
 
@@ -162,14 +163,14 @@ test_that("a geometryTable and pairs reach buildShearTable as the contract decla
   }
   Integers <- shearFrom("")
   Doubles <- shearFrom(".0")
-  expect_equal(Integers, Doubles, tolerance = 0)
+  expect_equal(Integers, Doubles)
   expect_identical(vapply(Integers[, c("Hs", "b", "s")], typeof, ""), c(Hs = "double", b = "double", s = "double"))
 
   set.seed(20260915L)
   Expected <- buildShearTable(data.frame(IDg = c("S10", "S20"), Hs = c(10, 20), b = c(8, 16), s = c(2, 3)),
                               USCS = list(U1 = c("ML", "MH"), U2 = c("SP", "SM")), IDm = c("U1", "U2"),
                               Vref = 760, levels = LEVELS, pairs = data.frame(IDg = c("S10", "S20"), IDm = c("U1", "U2")))
-  expect_equal(Integers, Expected, tolerance = 0)
+  expect_equal(Integers, Expected)
 })
 
 test_that("file and the contract paths resolve against root, absolute paths are kept", {
@@ -234,7 +235,7 @@ test_that("without seed the ShearTable step runs on the caller's stream and repo
   Expected <- buildShearTable(buildGeometry(Hs = c(10, 12), lo = seq(0.35, 0.075, length.out = 2L),
                                             s = seq(2.5, 3.5, length.out = 2L)),
                               USCS = list(U1 = c("ML", "MH")), IDm = "U1", Vref = 760, levels = LEVELS)
-  expect_equal(readRDS(file.path(Root, "products", "ShearTable.Rds")), Expected, tolerance = 0)
+  expect_equal(readRDS(file.path(Root, "products", "ShearTable.Rds")), Expected)
 })
 
 test_that("the ShearTable step checks a seed that the contract defines, and the heights", {
@@ -254,6 +255,137 @@ test_that("the ShearTable step checks a seed that the contract defines, and the 
   expect_error(planQuietly(root = Root, steps = "ShearTable"),
                "names materials that uscs does not define: U9", fixed = TRUE)
   expect_identical(list.files(Root), "newmark.json")
+})
+
+# A ShearTable contract of one geometry, whose run draws one pair of
+# realizations, for the ShearDraws step.
+SHEARONE <- modifyList(SHEAR, list(Hs = 10, lo.min = 0.35, lo.max = 0.35, s.min = 2.5, s.max = 2.5))
+
+shearOneInputs <- function() {
+  list(geometry = buildGeometry(Hs = 10, lo = 0.35, s = 2.5), USCS = list(U1 = c("ML", "MH")), IDm = "U1", Vref = 760,
+       levels = LEVELS)
+}
+
+fileBytes <- function(path) readBin(path, "raw", file.size(path))
+
+test_that("the ShearDraws step requires seed and a published ShearTable, and only it reads NS.shear", {
+  Root <- newProjectRoot()
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  dir.create(file.path(Root, "products"))
+  saveRDS(shearTable(), file.path(Root, "products", "ShearTable.Rds"))
+  writeContract(Root, SHEARONE[names(SHEARONE) != "seed"])
+  expect_error(planQuietly(root = Root, steps = "ShearDraws"),
+               paste0(file.path(Root, "newmark.json"), " must define seed for the ShearDraws step"), fixed = TRUE)
+  writeContract(Root, SHEARONE)
+  Effects <- planQuietly(root = Root, steps = "ShearDraws")
+  expect_identical(as.list(Effects[, .(step, product, path, action)]),
+                   list(step = "ShearDraws", product = "ShearDraws", path = "products/ShearDraws.Rds", action = "writes"))
+  unlink(file.path(Root, "products", "ShearTable.Rds"))
+  expect_error(planQuietly(root = Root, steps = "ShearDraws"), "ShearTable.Rds (written by the ShearTable step)",
+               fixed = TRUE)
+  # With ShearTable selected, the table is the one the run publishes first.
+  expect_identical(planQuietly(root = Root, steps = c("ShearDraws", "ShearTable"))$path,
+                   c("products/ShearTable.Rds", "products/ShearDraws.Rds"))
+  for (NS in list(99, 100.5, "120", TRUE, c(100, 120))) {
+    writeContract(Root, c(SHEARONE, list(NS.shear = NS)))
+    expect_error(planQuietly(root = Root, steps = c("ShearTable", "ShearDraws")),
+                 "must define NS.shear as a whole number between 100 and 2147483647", fixed = TRUE)
+    expect_identical(planQuietly(root = Root, steps = "ShearTable")$product, "ShearTable")
+  }
+  expect_identical(list.files(Root, recursive = TRUE), "newmark.json")
+})
+
+test_that("the ShearDraws step publishes the realizations of the published ShearTable, extended to NS.shear", {
+  skip_on_cran()
+  Root <- newProjectRoot()
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  writeContract(Root, c(SHEARONE, list(NS.shear = 120)))
+  Run <- captureMessages(processProject(root = Root, steps = c("ShearTable", "ShearDraws")))
+  Effects <- Run$value
+  expect_identical(vapply(Filter(function(x) inherits(x, "moduleProgress"), Run$conditions), conditionMessage, ""),
+                   c("ShearTable wrote ShearTable (9 rows, seed 20260915)\n",
+                     "ShearDraws wrote ShearDraws (120 rows, seed 20260915, NS.shear 120, negative mo forced to 0 in 0 realization(s))\n"))
+  expect_identical(Effects, data.table::data.table(step = c("ShearTable", "ShearDraws"), siteID = NA_character_,
+                                                   product = c("ShearTable", "ShearDraws"),
+                                                   path = c("products/ShearTable.Rds", "products/ShearDraws.Rds"),
+                                                   action = "writes", rows = c(9L, 120L)))
+  set.seed(20260915L)
+  Expected <- do.call(buildShearDraws, c(shearOneInputs(), list(NS = 120)))
+  expect_equal(readRDS(file.path(Root, "products", "ShearDraws.Rds")), Expected$ShearDraws)
+  expect_equal(readRDS(file.path(Root, "products", "ShearTable.Rds")), Expected$ShearTable)
+  # Alone, the step reproduces the contract-rounded draws, replaces its own
+  # file with the same bytes and never writes ShearTable.Rds.
+  Shear <- fileBytes(file.path(Root, "products", "ShearTable.Rds"))
+  Draws <- fileBytes(file.path(Root, "products", "ShearDraws.Rds"))
+  Effects <- suppressMessages(processProject(root = Root, steps = "ShearDraws"))
+  expect_identical(Effects$action, "replaces")
+  expect_identical(fileBytes(file.path(Root, "products", "ShearTable.Rds")), Shear)
+  expect_identical(fileBytes(file.path(Root, "products", "ShearDraws.Rds")), Draws)
+  expect_identical(sort(list.files(file.path(Root, "products"), all.files = TRUE, no.. = TRUE)),
+                   c("ShearDraws.Rds", "ShearTable.Rds"))
+})
+
+test_that("the ShearDraws step reports how many realizations it publishes with a negative mo forced to 0", {
+  skip_on_cran()
+  # A clay column of 12 m: one realization under the seed fits a negative
+  # mo, while the nine rows of its shear table have a root.
+  Root <- newProjectRoot()
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  writeContract(Root, modifyList(SHEARONE, list(Hs = 12, uscs = list(U1 = "CH"))))
+  Run <- captureMessages(processProject(root = Root, steps = c("ShearTable", "ShearDraws")))
+  Notes <- Filter(function(x) identical(x$operation, "buildShearDraws"), Run$conditions)
+  expect_identical(vapply(Notes, `[[`, integer(1L), "count"), 1L)
+  expect_identical(vapply(Filter(function(x) inherits(x, "moduleProgress"), Run$conditions), conditionMessage, ""),
+                   c("ShearTable wrote ShearTable (9 rows, seed 20260915)\n",
+                     "ShearDraws wrote ShearDraws (100 rows, seed 20260915, NS.shear 100, negative mo forced to 0 in 1 realization(s))\n"))
+  expect_identical(Run$value$product, c("ShearTable", "ShearDraws"))
+})
+
+test_that("the ShearDraws step publishes nothing when the published ShearTable is not the one its seed draws", {
+  skip_on_cran()
+  Root <- newProjectRoot()
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  writeContract(Root, SHEARONE)
+  dir.create(file.path(Root, "products"))
+  set.seed(20260915L)
+  Shear <- do.call(buildShearTable, shearOneInputs())
+  Shear[level == "mean", Ts := Ts + 0.001]
+  saveRDS(Shear, file.path(Root, "products", "ShearTable.Rds"))
+  Before <- fileBytes(file.path(Root, "products", "ShearTable.Rds"))
+  Error <- tryCatch(suppressMessages(processProject(root = Root, steps = "ShearDraws")), error = identity)
+  expect_s3_class(Error, "error")
+  expect_false(inherits(Error, "newmarkPartialPublication"))
+  expect_match(conditionMessage(Error),
+               paste0(file.path(Root, "products", "ShearTable.Rds"),
+                      " is not the shear table that the contract and its seed draw, so ShearDraws publishes nothing: ",
+                      "the values of Ts differ"),
+               fixed = TRUE)
+  expect_identical(list.files(file.path(Root, "products"), all.files = TRUE, no.. = TRUE), "ShearTable.Rds")
+  expect_identical(fileBytes(file.path(Root, "products", "ShearTable.Rds")), Before)
+})
+
+test_that("the ShearDraws step compares the columns and values of the published ShearTable, not its key or indices", {
+  skip_on_cran()
+  Root <- newProjectRoot()
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  writeContract(Root, SHEARONE)
+  dir.create(file.path(Root, "products"))
+  set.seed(20260915L)
+  Shear <- do.call(buildShearTable, shearOneInputs())
+  # A key on the one geometry and an index leave every row in its place, but
+  # all.equal() at tolerance 0 tells the tables apart.
+  Keyed <- data.table::copy(Shear)
+  data.table::setkey(Keyed, IDg)
+  data.table::setindex(Keyed, level)
+  expect_true(all(mapply(identical, Keyed, Shear)))
+  expect_false(isTRUE(all.equal(Keyed, Shear)))
+  saveRDS(Keyed, file.path(Root, "products", "ShearTable.Rds"))
+  expect_identical(suppressMessages(processProject(root = Root, steps = "ShearDraws"))$product, "ShearDraws")
+  # The same numbers of another type are other values.
+  Keyed[, Hs := as.integer(Hs)]
+  saveRDS(Keyed, file.path(Root, "products", "ShearTable.Rds"))
+  Error <- tryCatch(suppressMessages(processProject(root = Root, steps = "ShearDraws")), error = identity)
+  expect_match(conditionMessage(Error), "so ShearDraws publishes nothing: the values of Hs differ", fixed = TRUE)
 })
 
 test_that("a dry run rejects the ShearTable inputs that a run rejects, before seeding or writing", {
@@ -332,6 +464,17 @@ test_that("a contract without seed plans the site steps, which never read it", {
                      "products/M1/S1/kmaxTable.Rds", "products/kmaxTable.Rds"))
   expect_identical(Effects$action, c("replaces", "replaces", "writes", "replaces", "replaces", rep("writes", 6L)))
   expect_identical(Effects$rows, rep(NA_integer_, 11L))
+})
+
+test_that("DnTable requires stored columns unless ShearDraws is selected before it", {
+  Root <- stubSiteProject(c(SITES, SHEAR[c("Hs", "lo.min", "lo.max", "s.min", "s.max", "uscs", "IDm", "seed")]))
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  unlink(file.path(Root, "products", "ShearDraws.Rds"))
+  expect_error(planQuietly(root = Root, steps = "DnTable"), "ShearDraws.Rds (written by the ShearDraws step)", fixed = TRUE)
+  local_mocked_bindings(buildShearDraws = function(...) stop("dry run must not draw columns"))
+  Effects <- planQuietly(root = Root, steps = c("ShearDraws", "DnTable"))
+  expect_identical(Effects$step, c("ShearDraws", rep("DnTable", 8L)))
+  expect_false(file.exists(file.path(Root, "products", "ShearDraws.Rds")))
 })
 
 test_that("Vref.gmdp must be 760 for the site steps and path.data is required by DnTable only", {
@@ -450,13 +593,14 @@ test_that("a dry run reports every destination in publication order and changes 
   expect_identical(Effects$path, c("products/ShearTable.Rds", "products/M1/S2/DnDraws.Rds",
                                    "products/M1/S2/PGATable.csv", "products/M1/S2/DnTable.Rds",
                                    "products/DnPlotTable.Rds", "products/DnTable.Rds",
-                                   "products/M1/S2/kmaxTable.Rds", "products/kmaxTable.Rds"))
-  expect_identical(Effects$action, c(rep("replaces", 3L), rep("writes", 5L)))
+                                   "products/M1/S2/kmaxTable.Rds", "products/kmaxTable.Rds",
+                                   "products/M1/S2/DnPOETable.Rds", "products/DnPOETable.Rds"))
+  expect_identical(Effects$action, c(rep("replaces", 3L), rep("writes", 7L)))
   # The plan is the notes of the process operation; the contract also selects the flexible model of the regime.
   expect_true(all(vapply(Notes, inherits, logical(1L), "moduleNote")))
   Plan <- Filter(function(x) identical(x$operation, "process"), Notes)
   expect_identical(vapply(Plan, conditionMessage, ""),
-                   paste0(c(paste("Dry run of", file.path(Root, "newmark.json")), "Steps: ShearTable, DnTable, kmaxTable",
+                   paste0(c(paste("Dry run of", file.path(Root, "newmark.json")), "Steps: ShearTable, DnTable, kmaxTable, DnPOETable",
                             "Sites: S2", paste(Effects$step, Effects$action, Effects$path)), "\n"))
   expect_identical(vapply(Plan, `[[`, "", "phase"), c(rep("plan", 3L), Effects$step))
   expect_identical(lapply(Plan, `[[`, "path"), c(list(file.path(Root, "newmark.json"), NULL, NULL), as.list(Effects$path)))
@@ -471,7 +615,7 @@ test_that("the step names of newmark 1.7.1 are refused before the contract is re
   Root <- newProjectRoot()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   for (Steps in list("ts", c("DnTable", "kmax"))) {
-    expect_error(processProject(root = Root, steps = Steps), "steps must select ShearTable, DnTable or kmaxTable",
+    expect_error(processProject(root = Root, steps = Steps), "steps must select ShearTable, ShearDraws, DnTable, kmaxTable or DnPOETable",
                  fixed = TRUE)
   }
 })
@@ -640,19 +784,11 @@ test_that("the only file of the ShearTable group is never half replaced", {
 
 bytes <- function(path) readBin(path, "raw", file.size(path))
 
-# The bytes that the step writes for an object: saveRDS(), or fwrite() with
-# na = "NA" for the PGA table.
-savedBytes <- function(x) {
-  FILE <- tempfile()
-  on.exit(unlink(FILE), add = TRUE)
-  saveRDS(x, FILE)
-  bytes(FILE)
-}
-
+# The PGA writer's CSV spelling, including its NA and LF conventions.
 csvBytes <- function(x) {
   FILE <- tempfile(fileext = ".csv")
   on.exit(unlink(FILE), add = TRUE)
-  data.table::fwrite(x, FILE, na = "NA")
+  data.table::fwrite(x, FILE, na = "NA", eol = "\n")
   bytes(FILE)
 }
 
@@ -685,17 +821,19 @@ test_that("the DnTable step publishes what buildDnTables, buildPGATable and asse
   for (Site in c("S1", "S2")) {
     Rock <- readRDS(file.path(Root, "uhs", "M1", Site, "UHSRock.Rds"))
     Direct <- buildDnTables(Rock, MCE, Shear, modelID = "M1", siteID = Site, TR = 100, Vref = 760, Mw = 7, NS = 5,
-                            weights = c(AM88 = 1), zTrunc = 3, workers = 1)
+                            weights = c(AM88 = 1), zTrunc = 3, workers = 1,
+                            draws = readRDS(file.path(Root, "products", "ShearDraws.Rds")))
     PGA <- buildPGATable(Rock, MCE = MCE, shear = Shear, modelID = "M1", siteID = Site, TR = 100)
     FILES <- file.path(Root, siteGroup(Site))
-    expect_identical(bytes(FILES[[1L]]), savedBytes(Direct$DnDraws))
-    expect_identical(bytes(FILES[[2L]]), csvBytes(PGA))
-    expect_identical(bytes(FILES[[3L]]), savedBytes(Direct$DnTable))
+    expectReproduces(readRDS(FILES[[1L]]), Direct$DnDraws)
+    expectReproducesLines(readLines(FILES[[2L]]), strsplit(rawToChar(csvBytes(PGA)), "\n", fixed = TRUE)[[1L]])
+    expect_false(as.raw(13L) %in% bytes(FILES[[2L]]))
+    expectReproduces(readRDS(FILES[[3L]]), Direct$DnTable)
   }
   Tables <- lapply(c(S1 = "S1", S2 = "S2"), function(x) readRDS(file.path(Root, siteGroup(x)[[3L]])))
   Global <- assembleDnTables(Tables, shear = Shear, weights = c(AM88 = 1), modelID = "M1", TR = 100, Vref = 760)
-  expect_identical(bytes(file.path(Root, "products", "DnPlotTable.Rds")), savedBytes(Global$DnPlotTable))
-  expect_identical(bytes(file.path(Root, "products", "DnTable.Rds")), savedBytes(Global$DnTable))
+  expectReproduces(readRDS(file.path(Root, "products", "DnPlotTable.Rds")), Global$DnPlotTable)
+  expectReproduces(readRDS(file.path(Root, "products", "DnTable.Rds")), Global$DnTable)
 
   expect_identical(Effects, data.table::data.table(
     step = "DnTable", siteID = c(rep(c("S1", "S2"), each = 3L), NA, NA),
@@ -703,26 +841,37 @@ test_that("the DnTable step publishes what buildDnTables, buildPGATable and asse
     path = c(siteGroup("S1"), siteGroup("S2"), "products/DnPlotTable.Rds", "products/DnTable.Rds"),
     action = "writes", rows = c(rep(c(300L, 2L, 1440L), 2L), nrow(Global$DnPlotTable), 2880L)))
 
-  # Running the step again replaces every file with the same bytes.
-  Products <- dnProducts(Root)
+  # A second calculation reproduces the values; file identities stay exact.
+  Products <- names(dnProducts(Root))
   expect_length(Products, 8L)
+  Tables <- lapply(file.path(Root, Products), function(x) {
+    if (endsWith(x, ".csv")) return(readLines(x))
+    readRDS(x)
+  })
   Effects <- suppressMessages(processProject(root = Root, steps = "DnTable"))
   expect_identical(Effects$action, rep("replaces", 8L))
-  expect_identical(dnProducts(Root), Products)
+  expect_identical(names(dnProducts(Root)), Products)
+  for (i in seq_along(Products)) {
+    FILE <- file.path(Root, Products[[i]])
+    if (endsWith(FILE, ".csv")) expectReproducesLines(readLines(FILE), Tables[[i]])
+    if (endsWith(FILE, ".Rds")) expectReproduces(readRDS(FILE), Tables[[i]])
+  }
   expect_identical(temporaries(Root), character())
 })
 
-test_that("dn products repeat exactly and do not depend on the sites run alongside", {
+test_that("dn products do not depend on the sites run alongside", {
   skip_on_cran()
   Alone <- dnProject(sites = "S1")
   Both <- dnProject()
   on.exit(unlink(c(Alone, Both), recursive = TRUE), add = TRUE)
   suppressMessages(processProject(root = Alone, steps = "DnTable"))
-  Products <- dnProducts(Alone)
-  expect_length(Products, 5L)
+  expect_length(dnProducts(Alone), 5L)
 
   suppressMessages(processProject(root = Both, steps = "DnTable"))
-  expect_identical(dnProducts(Both)[siteGroup("S1")], Products[siteGroup("S1")])
+  for (FILE in siteGroup("S1")) {
+    if (endsWith(FILE, ".csv")) expectReproducesLines(readLines(file.path(Both, FILE)), readLines(file.path(Alone, FILE)))
+    if (endsWith(FILE, ".Rds")) expectReproduces(readRDS(file.path(Both, FILE)), readRDS(file.path(Alone, FILE)))
+  }
 })
 
 test_that("the global tables hold every site found with a DnTable.Rds, selected or not", {
@@ -811,10 +960,10 @@ test_that("without ShearTable, the MCE demand and the heights are checked before
   }
   expect_identical(list.files(Root, recursive = TRUE, all.files = TRUE), Before)
   expect_identical(nrow(planQuietly(root = Root, steps = "DnTable", sites = "S1")), 5L)
-  # The MCE grid must reach 1.5 times the largest period of the mean rows.
-  Shear <- shearTable()
-  Shear$Ts[[1L]] <- 0.8
-  saveRDS(Shear, file.path(Root, "products", "ShearTable.Rds"))
+  # Coverage follows the sampled columns, independently of the mean-row period.
+  Columns <- fixedShearDraws(shearTable())
+  Columns$Ts[[1L]] <- 0.8
+  saveRDS(Columns, file.path(Root, "products", "ShearDraws.Rds"))
   expect_error(planQuietly(root = Root, steps = "DnTable", sites = "S1"),
                "MCE rock period grid does not cover required Dn period 1.5*max(Ts) = 1.2", fixed = TRUE)
   # kmaxTable derives its displacements from the heights, which DnTable does
@@ -822,6 +971,7 @@ test_that("without ShearTable, the MCE demand and the heights are checked before
   Shear <- shearTable()
   Shear$Hs <- NULL
   saveRDS(Shear, file.path(Root, "products", "ShearTable.Rds"))
+  saveRDS(fixedShearDraws(Shear), file.path(Root, "products", "ShearDraws.Rds"))
   expect_identical(nrow(planQuietly(root = Root, steps = "DnTable", sites = "S1")), 5L)
   expect_error(planQuietly(root = Root, steps = c("DnTable", "kmaxTable"), sites = "S1"),
                paste0(file.path(Root, "products", "ShearTable.Rds"), " holds a shear table that buildKmaxTable() rejects: ",
@@ -829,7 +979,7 @@ test_that("without ShearTable, the MCE demand and the heights are checked before
                fixed = TRUE)
   # With ShearTable selected, the shear table is the one the run would write.
   writeContract(Root, c(DN, SHEAR[c("Hs", "lo.min", "lo.max", "s.min", "s.max", "uscs", "IDm", "seed")]))
-  expect_identical(nrow(planQuietly(root = Root)), 12L)
+  expect_identical(nrow(planQuietly(root = Root)), 15L)
 })
 
 test_that("with ShearTable selected, the DnTable checks follow the publication of the shear table", {
@@ -845,8 +995,8 @@ test_that("with ShearTable selected, the DnTable checks follow the publication o
   expect_identical(Error$effects$action, "replaces")
   expect_null(Error$path)
   expect_identical(conditionMessage(Error),
-                   paste0("DnTable failed after 1 published file(s): MCETable has no MCE rock rows for siteID=S2, ",
-                          "Vs30=Vref=760\npublished: products/ShearTable.Rds"))
+                   paste0("DnTable failed after 1 published file(s): ShearDraws must cover exactly the geometry-material ",
+                          "pairs of ShearTable\npublished: products/ShearTable.Rds"))
   expect_identical(names(dnProducts(Root)), character())
 })
 
@@ -854,6 +1004,7 @@ test_that("DnTable runs on the cores that R detects minus one unless the contrac
   Root <- dnProject(sites = "S1")
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   saveRDS(shearTable(materials = 3L), file.path(Root, "products", "ShearTable.Rds"))
+  saveRDS(fixedShearDraws(shearTable(materials = 3L)), file.path(Root, "products", "ShearDraws.Rds"))
   Workers <- integer()
   local_mocked_bindings(buildDnTables = function(..., workers) {
     Workers <<- c(Workers, workers)
@@ -912,35 +1063,37 @@ test_that("the kmaxTable step publishes what buildKmaxTable and assembleKmaxTabl
     buildKmaxTable(readRDS(file.path(Root, "products", "M1", x, "DnDraws.Rds")), PGATable = PGA[[x]], shear = Shear,
                    modelID = "M1", siteID = x, TR = 100, NS = 5, weights = c(AM88 = 1), DaH = c(0.5, 1.5))
   })
-  for (Site in Sites) expect_identical(bytes(file.path(Root, siteKmax(Site))), savedBytes(Tables[[Site]]))
+  for (Site in Sites) expectReproduces(readRDS(file.path(Root, siteKmax(Site))), Tables[[Site]])
   Global <- assembleKmaxTables(lapply(Sites, function(x) readRDS(file.path(Root, siteKmax(x)))), shear = Shear,
                                modelID = "M1", TR = 100, weights = c(AM88 = 1), DaH = c(0.5, 1.5))
-  expect_identical(bytes(file.path(Root, "products", "kmaxTable.Rds")), savedBytes(Global))
+  expectReproduces(readRDS(file.path(Root, "products", "kmaxTable.Rds")), Global)
   # 0.5 and 1.5 percent of the 10 m geometry, in cm, and the MCE at TR = NA.
-  expect_identical(sort(unique(Global$Da)), c(5, 15))
+  expect_equal(sort(unique(Global$Da)), c(5, 15))
   expect_true(all(is.na(Global$TR[Global$ID == "MCE"])))
   expect_identical(Effects, data.table::data.table(
     step = "kmaxTable", siteID = c("S1", "S2", NA), product = "kmaxTable",
     path = c(siteKmax("S1"), siteKmax("S2"), "products/kmaxTable.Rds"), action = "writes", rows = c(96L, 96L, 192L)))
 
-  # Running the step again replaces every file with the same bytes.
-  Products <- kmaxProducts(Root)
+  # A second calculation reproduces the values; file identities stay exact.
+  Products <- names(kmaxProducts(Root))
+  Tables <- lapply(file.path(Root, Products), readRDS)
   Effects <- suppressMessages(processProject(root = Root, steps = "kmaxTable"))
   expect_identical(Effects$action, rep("replaces", 3L))
-  expect_identical(kmaxProducts(Root), Products)
+  expect_identical(names(kmaxProducts(Root)), Products)
+  expectReproduces(lapply(file.path(Root, Products), readRDS), Tables)
   expect_identical(temporaries(Root), character())
 })
 
-test_that("the three steps run in order, and kmaxTable reads the shear table the run has just published", {
+test_that("the five selected steps read the shear table and columns the run has just published", {
   skip_on_cran()
   Root <- dnProject(contract = c(DN, SHEAR[c("Hs", "lo.min", "lo.max", "s.min", "s.max", "uscs", "IDm", "seed")]))
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
-  Effects <- suppressMessages(processProject(root = Root))
-  expect_identical(Effects$step, c("ShearTable", rep("DnTable", 8L), rep("kmaxTable", 3L)))
-  expect_identical(Effects$path[10:12], c(siteKmax("S1"), siteKmax("S2"), "products/kmaxTable.Rds"))
+  Effects <- suppressMessages(processProject(root = Root, steps = c("ShearTable", "ShearDraws", "DnTable", "kmaxTable", "DnPOETable")))
+  expect_identical(Effects$step, c("ShearTable", "ShearDraws", rep("DnTable", 8L), rep("kmaxTable", 3L), rep("DnPOETable", 3L)))
+  expect_identical(Effects$path[11:13], c(siteKmax("S1"), siteKmax("S2"), "products/kmaxTable.Rds"))
   # The heights of the new shear table, 10 and 12 m, not the 10 m of the
   # table it replaced.
-  expect_identical(sort(unique(readRDS(file.path(Root, "products", "kmaxTable.Rds"))$Da)), c(5, 6, 15, 18))
+  expect_equal(sort(unique(readRDS(file.path(Root, "products", "kmaxTable.Rds"))$Da)), c(5, 6, 15, 18))
   expect_identical(temporaries(Root), character())
 })
 

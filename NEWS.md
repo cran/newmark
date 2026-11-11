@@ -1,3 +1,97 @@
+# newmark 1.14.0
+
+* The `BM19` pulse-motion `D50` equation now uses the intercept -0.148
+  from the official erratum when `Ts < 0.1` s and `PGV > 150` cm/s,
+  replacing 2.480. Other regimes and the ordinary-motion equations used
+  by the project tables and hazard integration are unchanged.
+* Licence changed from MIT to AGPL (>= 3). Files in `R/` carry SPDX
+  licence headers. `LICENSE.note` has been removed.
+* Column site spectra are reused at VS30 rounded to the nearest 1 m/s.
+  `ShearDraws` retains its stored VS30 values. Mean-row site response uses
+  the row's stored VS30 for PGATable, the common ky grid and reference metadata.
+* `buildDnTables()` requires `draws`, the paired `Ts` and `VS30` of
+  `ShearDraws`. The `NS` movements of each pair cycle through its columns
+  in realization order. Each column supplies its site response, spectral
+  sampling periods and displacement period. The movement count, model
+  weights, table schemas and empirical exceedance calculation are unchanged.
+* PGA, Sa13 and Sa15 are centered once over the complete cell sample on
+  the column means weighted by their assigned movements. Column subsets
+  are not centered separately. Identical columns reproduce the intensities
+  and model deviates of a single-column sample with the same seed and NS.
+  Public `sampleIntensities()` and `sampleSpectra()` calls are unchanged.
+* The `DnTable` project step reads `ShearDraws.Rds`. Generate it explicitly
+  with the `ShearDraws` step if absent. `ShearTable` mean rows continue to
+  define the common ky grid, PGATable and reference metadata; `PGA.s` holds
+  each movement's sampled PGA. The hazard-integration functions are unchanged.
+
+# newmark 1.13.0
+
+* `integrateDnHazard()` and `integrateDnHazardProfiles()` accept `BM19`
+  among the `weights`, with the spectral acceleration at its degraded
+  period `1.3 Ts` and its ordinary-motion equation, as the `DnTable`
+  products evaluate it. The project route keeps `BM19` for shallow
+  crustal regimes (`subduction` false), so the hazard integration can now
+  take the model set of such a project. Every other model integrates as
+  before.
+
+# newmark 1.12.0
+
+* New function `buildShearDraws()`: the realizations of the soil columns
+  that `buildShearTable()` summarizes, 100 per geometry and material, each
+  with the period of the truncated shear beam evaluated on its own `mo` and
+  `VSo` with the rounding of the summary rows, together with the shear
+  table summarized from the same draws. Realizations beyond 100 (`NS`) are
+  drawn in a second pass after every pair has its first 100, so the first
+  100 and the shear table do not depend on `NS`. As a rule of the product,
+  a realization whose fitted `mo` is negative is returned with `mo` forced
+  to 0 and with `an` and `Ts` evaluated at that 0, and a message counts
+  them, while the shear table summarizes the fitted `mo`; a realization
+  with `mo` of 2 or more, where the first-mode root is not defined, stops
+  the function naming it. `buildShearTable()` keeps its arguments, its
+  random numbers and its values.
+* The new `ShearDraws` step of `process` follows `ShearTable` and runs only
+  when selected. It requires `seed`, draws the realizations again from the
+  contract and the seed, and publishes `ShearDraws.Rds` at the root of
+  `path.tables` only when their summary equals the published
+  `ShearTable.Rds` value for value; it never writes `ShearTable.Rds`. Its
+  message reports how many realizations it publishes with a negative `mo`
+  forced to 0. The
+  contract key `NS.shear` (a whole number of at least 100, 100 when absent)
+  sets the realizations per pair and is read by this step alone. Listing
+  and query know the table.
+* New function `integrateDnHazardProfiles()`: the annual displacement
+  exceedance rate of `integrateDnHazard()` mixed over site profiles, each a
+  pair of `Ts` and `VS30` with an optional weight, and over yield
+  coefficients with weights, under a declared independence of profile and
+  yield coefficient. The Poisson probabilities, the band and the rare-tail
+  bound are formed on the mixed rates. It reports each component, the
+  weighted fraction of components with `ky` outside a calibration range,
+  and the Monte Carlo standard error of the mixture over the profiles
+  (`mixtureError`, `bandMixtureError`), which is not an error bound. It is
+  an operation of the displacement family, where the command takes `ky` as
+  a table of `ky` and `w`. `integrateDnHazard()` does not change.
+* The exports that the installer verifies and `newmark doctor` checks now
+  include `integrateDnHazard()` and `listDisplacementFamilies()`, which the
+  command already called but which that list had left out.
+* The products `ShearTable`, `DnTable`, `kmaxTable` and `DnPOETable` and
+  their columns do not change.
+
+# newmark 1.11.0
+
+* `buildDnPOETable()` counts the weighted empirical fraction of stored
+  pointwise displacement realizations exceeding `DaH * Hs`, by site,
+  demand, geometry, material, yield acceleration and threshold.
+  `assembleDnPOETables()` combines the site tables. The fraction is
+  conditional on the demand (return period or MCE) and inherits the
+  positive lognormal branch represented by the flexible-model draws;
+  stored zeros, including SR08 underflow, count as non-exceedance.
+* The new `DnPOETable` step follows `kmaxTable` in `process` and can run
+  alone from the accepted ShearTable and DnDraws, without PGATable or a
+  new simulation. It publishes per-site and global DnPOETable products,
+  available through listing and query. Both functions are CLI operations.
+  This product does not integrate displacement hazard or add an
+  `extrapolated` column.
+
 # newmark 1.10.0
 
 * New function `integrateDnHazard()`: the annual rate at which the Newmark
@@ -61,7 +155,7 @@
   kmax tables summarize as trees, each with the identifiers of its models.
   The command line runs it as the operation of the same name.
 * `?newmark` loses the package name from its title. The help pages of
-  `estimatePGV()` and `estimateAI()` cite Verri Kozlowski (2023), the
+  `estimatePGV()` and `estimateAI()` cite Verri (2023), the
   source of the rock records their relations were fitted on. On CRAN, the
   tests that repeat a step of `processProject()` skip; one run of each
   step and the dry run still execute there.

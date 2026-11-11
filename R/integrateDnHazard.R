@@ -1,13 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Displacement exceedance integrated over rock hazard curves
 #'
 #' Integrates the existing displacement regressions and ST20/ST17 site
 #' uncertainty over annual rock exceedance rates, at a fixed yield coefficient.
-#' Rigid models use the PGA curve. Flexible models use Sa at 1.5 Ts and,
+#' Rigid models use the PGA curve. Flexible models use Sa at the degraded
+#' period of the model, 1.5 Ts for BT07 and BM17 and 1.3 Ts for BM19, and,
 #' for the site factor only, the PGA at the same return period. This last
 #' pairing is an equal-hazard approximation, not an event joint distribution.
 #'
-#' For BT07 and BM17 ([evaluateFlexibleDisplacement()]), the integrand uses
-#' the lognormal distribution conditional on nonzero displacement; it is not
+#' For BT07, BM17 and BM19 ([evaluateFlexibleDisplacement()]; BM19 with its
+#' ordinary-motion equation, as the DnTable products take it), the integrand
+#' uses the lognormal distribution conditional on nonzero displacement; it is not
 #' multiplied by the probability of nonzero displacement, so these rates do
 #' not represent the unconditional exceedance hazard of the published mixed
 #' models. For JB07 and SR08 ([evaluateRigidDisplacement()]), the Arias
@@ -53,7 +59,7 @@
 #' @param Vref One reference velocity in m/s, 760 or 3000.
 #' @param Mw Fixed moment magnitude, one finite positive value.
 #' @param weights Positive named dimensionless weights of AM88, JB07, SR08,
-#'   BT07 or BM17.
+#'   BT07, BM17 or BM19.
 #' @param Da Displacement threshold in cm, one finite positive value.
 #' @param IT Exposure in years, one finite positive value.
 #' @param TR Two increasing finite positive return periods in years; the band
@@ -100,7 +106,10 @@ integrateDnHazard <- function(curves, ky, Ts, VS30, Vref, Mw, weights, Da, IT, T
       stop("ky, Ts, Mw, Da and IT must be positive finite scalars")
     }
   }
-  Allowed <- c("AM88", "JB07", "SR08", "BT07", "BM17")
+  # The degraded period of each model as a multiple of Ts: 0 for the rigid
+  # models, which read the PGA curve.
+  Degraded <- c(AM88 = 0, JB07 = 0, SR08 = 0, BT07 = 1.5, BM17 = 1.5, BM19 = 1.3)
+  Allowed <- names(Degraded)
   if (!is.numeric(weights) || !length(weights) || is.null(names(weights)) ||
       anyDuplicated(names(weights)) || any(!names(weights) %in% Allowed) ||
       any(!is.finite(weights) | weights <= 0)) stop("weights must name supported models with positive values")
@@ -130,8 +139,8 @@ integrateDnHazard <- function(curves, ky, Ts, VS30, Vref, Mw, weights, Da, IT, T
   Weights <- Weights / sum(Weights)
   Rules <- lapply(c(32L, 64L, 128L), .gaussLegendreRule)
   OUT <- lapply(names(Weights), function(model) {
-    IsRigid <- model %in% c("AM88", "JB07", "SR08")
-    Period <- if (IsRigid) 0 else 1.5 * Ts
+    Period <- Degraded[[model]] * Ts
+    IsRigid <- Period == 0
     if (Period > max(Periods)) stop("rock hazard does not cover the model period")
     Bracket <- Period
     if (!Period %in% Periods) Bracket <- c(max(Periods[Periods < Period]), min(Periods[Periods > Period]))
@@ -149,6 +158,9 @@ integrateDnHazard <- function(curves, ky, Ts, VS30, Vref, Mw, weights, Da, IT, T
       evaluateSiteSa(Sa = .interpolateSa(z), PGA = exp(Curves[["0"]]$at(z)), Tn = Period,
                      VS30 = VS30, Vref = Vref, model = siteModel)
     }
+    # The flexible models take their ordinary-motion equations, as
+    # buildDnTables() does (pulse FALSE); only the pulse equations of BM19
+    # use PGV, so a positive placeholder that passes its validation is sent.
     .evaluateModel <- function(IM) {
       if (IsRigid) return(evaluateRigidDisplacement(model = model, PGA = IM, ky = ky, AI = estimateAI(IM)))
       evaluateFlexibleDisplacement(model = model, ky = ky, Ts = Ts, Sa = IM, Mw = Mw,

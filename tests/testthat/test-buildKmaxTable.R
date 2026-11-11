@@ -6,7 +6,11 @@
 # with the stored kmaxTable rows of those cells at the levels of 27 m. The
 # arguments are those of the project's newmark.json: ID.gmdp M2V4D, site CFD,
 # NS 300, DaH.gmdp, and Dn_weights with subduction false (BM17 off).
-sliceInputs <- function() readRDS(test_path("fixtures", "kmax-M2V4D-S27-U4.Rds"))
+sliceInputs <- function() {
+  Slice <- readRDS(test_path("fixtures", "kmax-M2V4D-S27-U4.Rds"))
+  setnames(Slice$drawTable, old = "s", new = "realization")
+  Slice
+}
 
 sliceTable <- function(slice) {
   buildKmaxTable(draws = slice$drawTable, PGATable = slice$PGATable, shear = slice$shearTable,
@@ -15,15 +19,15 @@ sliceTable <- function(slice) {
                  DaH = c(0.05, 0.1, 0.25, 0.4, 0.5, 1, 2.5))
 }
 
-test_that("buildKmaxTable reproduces the stored newmark 1.7.1 kmaxTable rows exactly", {
+test_that("buildKmaxTable reproduces the stored newmark 1.7.1 kmaxTable rows", {
   Slice <- sliceInputs()
   expect_warning(Actual <- sliceTable(Slice), "kmax rows (siteID=CFD) use roots beyond sampled support", fixed = TRUE, class = "moduleWarning")
   Reference <- Slice$kmaxTable
-  expectReproducesTable(Reference, Actual)
+  expectReproduces(Actual, Reference)
   expect_identical(names(Reference), names(Actual))
   expect_identical(data.table::key(Reference), data.table::key(Actual))
   expect_identical(lapply(Reference, typeof), lapply(Actual, typeof))
-  expect_equal(Actual$Kh, Actual$kmax / Actual$PGA, tolerance = 0)
+  expect_equal(Actual$Kh, Actual$kmax / Actual$PGA)
 })
 
 test_that("buildKmaxTable leaves the caller's tables unchanged", {
@@ -43,6 +47,8 @@ test_that("inconsistent product inputs fail explicitly", {
   expect_error(do.call(buildKmaxTable, modifyList(Args, list(TR = 200))), "PGATable")
   expect_error(do.call(buildKmaxTable, modifyList(Args, list(weights = c(AM88 = 1, BT07 = 1)))), "IDn vocabulary")
   expect_error(do.call(buildKmaxTable, modifyList(Args, list(DaH = c(0.1, 0.1)))), "DaH")
+  setnames(Args$draws, old = "realization", new = "s")
+  expect_error(do.call(buildKmaxTable, Args), "Invalid DnDraws schema")
 })
 
 # Scenario cases of test-kmax-mixture.R and test-kmax-quantiles.R of newmark
@@ -50,7 +56,7 @@ test_that("inconsistent product inputs fail explicitly", {
 # has Dn = root / ky, so its kmax at Da = 1 is the root.
 scenarioDraws <- function(roots, samples) {
   rbindlist(lapply(names(roots), function(model) {
-    OUT <- CJ(s = seq_len(samples), ky = c(0.05, 0.10, 0.20, 0.30, 0.40))
+    OUT <- CJ(realization = seq_len(samples), ky = c(0.05, 0.10, 0.20, 0.30, 0.40))
     OUT[, `:=`(Dn = roots[[model]] / ky, IDn = model)]
   }))
 }

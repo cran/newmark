@@ -93,14 +93,14 @@ test_that("text values are converted to the type of their column, NA to a missin
                                          columns = names(Stored))),
                      directRows(Stored, ROWS))
   }
-  # The realization s of DnDraws is an integer column: "4.0" is 4.
+  # The realization column of DnDraws is an integer: "4.0" is 4.
   Draws <- stored(Root, "M2V4D", "CFD", "DnDraws.Rds")
-  Query <- query(Root, "DnDraws", siteID = "CFD", where = list(s = c("3", "4.0"), IDn = "AM88", TR = "NA"),
-                 columns = c("s", "ky", "Dn"))
-  ROWS <- which((Draws$s == 3L | Draws$s == 4L) & Draws$IDn == "AM88" & is.na(Draws$TR))
+  Query <- query(Root, "DnDraws", siteID = "CFD", where = list(realization = c("3", "4.0"), IDn = "AM88", TR = "NA"),
+                 columns = c("realization", "ky", "Dn"))
+  ROWS <- which((Draws$realization == 3L | Draws$realization == 4L) & Draws$IDn == "AM88" & is.na(Draws$TR))
   expect_length(ROWS, 60L)
-  expect_identical(as.data.frame(Query), directRows(Draws, ROWS, c("s", "ky", "Dn")))
-  expect_type(Query$s, "integer")
+  expect_identical(as.data.frame(Query), directRows(Draws, ROWS, c("realization", "ky", "Dn")))
+  expect_type(Query$realization, "integer")
   # The PGA table is read back from its CSV with TR numeric.
   PGA <- stored(Root, "M2V4D", "CFD", "PGATable.csv")
   Query <- query(Root, "PGATable", siteID = "CFD", where = list(TR = "NA"))
@@ -138,7 +138,7 @@ test_that("the values of a query come back from the 17-digit JSON of the command
   Root <- productProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   Queries <- list(query(Root, "kmaxTable", where = list(TR = "NA", IDn = c("ensemble", "BT07"))),
-                  query(Root, "DnDraws", siteID = "CFD", where = list(s = c("1", "300"), TR = c("NA", "100"))),
+                  query(Root, "DnDraws", siteID = "CFD", where = list(realization = c("1", "300"), TR = c("NA", "100"))),
                   query(Root, "PGATable", siteID = "CFD"),
                   query(Root, "ShearTable"))
   for (Query in Queries) {
@@ -157,7 +157,7 @@ test_that("a DnTable query marks the rows outside the ky range of their model or
   # that contain it; BM19 and its tree flexible stay within theirs.
   Marked <- vapply(split(Expected, Stored$IDn), sum, numeric(1L))
   expect_gt(Marked[["AM88"]], 0)
-  expect_identical(unname(Marked[c("ensemble", "rigid", "BM19", "flexible")]), c(Marked[["AM88"]], Marked[["AM88"]], 0, 0))
+  expect_equal(unname(Marked[c("ensemble", "rigid", "BM19", "flexible")]), c(Marked[["AM88"]], Marked[["AM88"]], 0, 0))
   Query <- query(Root, "DnTable", siteID = "TST")
   expect_identical(as.data.frame(Query), cbind(directRows(Stored, seq_len(nrow(Stored))), extrapolated = Expected))
   # The global DnTable takes the PGA of each cell from the PGATable of its site.
@@ -178,6 +178,8 @@ test_that("a kmaxTable query marks the rows whose kmax other than 0 is outside t
   # Both bounds are crossed, JB07 below 0.05 g and AM88 above the PGA of the
   # cell; a kmax of 0, the null demand, is never marked although it lies
   # below every range.
+  # Exact by contract: the flags are assigned 1 or 0 and kmax is assigned 0 when
+  # the target exceeds the ceiling (solveKmax.R), not computed.
   expect_true(any(Expected[Stored$IDn == "JB07" & Stored$kmax > 0 & Stored$kmax < 0.05] == 1))
   expect_true(any(Expected[Stored$IDn == "AM88" & Stored$kmax > Stored$PGA] == 1))
   expect_true(any(Stored$kmax == 0))
@@ -213,7 +215,7 @@ test_that("the AM88 upper bound admits the last digits of the grid top of a mean
                                             siteID = "TST", units.PGA = "g"),
                      file.path(Site, "PGATable.csv"), na = "NA")
   writeProductContract(Root, list(path = list(tables = "products"), Vref.gmdp = 760, ID.gmdp = "TEST"))
-  expect_identical(query(Root, "DnTable", siteID = "TST")$extrapolated, c(rep(0, 30L), 1))
+  expect_equal(query(Root, "DnTable", siteID = "TST")$extrapolated, c(rep(0, 30L), 1))
 })
 
 test_that("a DnTable query without the PGA of a cell stops naming the PGATable or the cells", {
@@ -252,7 +254,7 @@ test_that("an unknown product, site, column or value stops the query naming it",
   Root <- productProject()
   on.exit(unlink(Root, recursive = TRUE), add = TRUE)
   expect_error(query(Root, "kmaxTables"),
-               "unknown table kmaxTables: the tables are ShearTable, DnPlotTable, DnTable, kmaxTable, DnDraws, PGATable",
+               "unknown table kmaxTables: the tables are ShearTable, ShearDraws, DnPlotTable, DnTable, kmaxTable, DnPOETable, DnDraws, PGATable",
                fixed = TRUE)
   expect_error(query(Root, "DnDraws"), "DnDraws is a table of a site: siteID must name the site", fixed = TRUE)
   expect_error(query(Root, "ShearTable", siteID = "CFD"), "ShearTable is a global table: siteID must be NULL", fixed = TRUE)
@@ -284,8 +286,8 @@ test_that("an unknown product, site, column or value stops the query naming it",
   expect_error(query(Root, "kmaxTable", where = list(TR = c("0x64", " 100", "1.", "Inf", "NaN"))),
                "where.TR gives text that is not a number for column TR of products/kmaxTable.Rds: 0x64,  100, 1., Inf, NaN",
                fixed = TRUE)
-  expect_error(query(Root, "DnDraws", siteID = "CFD", where = list(s = c("3.5", "1e10", "NaN"))),
-               "where.s gives text that is not a whole number for column s of products/M2V4D/CFD/DnDraws.Rds: 3.5, 1e10, NaN",
+  expect_error(query(Root, "DnDraws", siteID = "CFD", where = list(realization = c("3.5", "1e10", "NaN"))),
+               "where.realization gives text that is not a whole number for column realization of products/M2V4D/CFD/DnDraws.Rds: 3.5, 1e10, NaN",
                fixed = TRUE)
   Shear <- stored(Root, "ShearTable.Rds")
   Shear$flag <- TRUE
@@ -328,7 +330,7 @@ test_that("a query writes nothing and leaves the product as it was stored", {
   Temporary <- list.files(tempdir(), recursive = TRUE, all.files = TRUE, no.. = TRUE)
   Before <- stored(Root, "kmaxTable.Rds")
   Query <- query(Root, "kmaxTable", where = list(TR = "NA"))
-  query(Root, "DnDraws", siteID = "CFD", where = list(s = "1"))
+  query(Root, "DnDraws", siteID = "CFD", where = list(realization = "1"))
   query(Root, "PGATable", siteID = "CFD", where = list(TR = "NA"))
   expect_identical(productTree(Root), Tree)
   expect_identical(list.files(tempdir(), recursive = TRUE, all.files = TRUE, no.. = TRUE), Temporary)

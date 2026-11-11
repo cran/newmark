@@ -3,7 +3,17 @@
 # of the AR-M2V4D products in the kmax fixture: the DnDraws, the PGA table
 # read back from its CSV, the shear table and the kmaxTable rows of
 # geometry S27 and material U4 at site CFD, under TR 100 and the MCE.
-productSlice <- function() readRDS(test_path("fixtures", "kmax-M2V4D-S27-U4.Rds"))
+
+# A fixed supplied column characterizes the old mean-row calculation.
+fixedShearDraws <- function(shear) {
+  data.table::as.data.table(shear)[level == "mean", .(IDg, IDm, realization = 1L, Ts, VS30, Vref)]
+}
+
+productSlice <- function() {
+  Slice <- readRDS(test_path("fixtures", "kmax-M2V4D-S27-U4.Rds"))
+  setnames(Slice$drawTable, old = "s", new = "realization")
+  Slice
+}
 
 PRODUCTCONTRACT <- list(path = list(tables = "products"), Vref.gmdp = 760, ID.gmdp = "M2V4D")
 

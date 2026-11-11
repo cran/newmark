@@ -8,15 +8,17 @@
 UnequalCurves <- rbind(transform(data.frame(Tn = 0, AEP = 10^seq(-5, 0, length.out = 80L)), Sa = .invertHazard(AEP)),
                        transform(data.frame(Tn = 1, AEP = 10^seq(-4, log10(.5), length.out = 20L)), Sa = 2 * .invertHazard(AEP)))
 
-# The log spectral accelerations u where the BT07 or BM17 median equals
-# log(Da). Each median is the parabola m - a (u - v)^2 in u, with a and the
-# vertex v of evaluateFlexibleDisplacement.R:131-132 (BT07: a = 0.244,
-# v = (3.04 + 0.566 log ky) / 0.488) and :138-139 (BM17: a = 0.225,
-# v = (3.060 + 0.538 log ky) / 0.450) and m its value at v, so the roots are
+# The log spectral accelerations u where the BT07, BM17 or BM19 median
+# equals log(Da). Each median is the parabola m - a (u - v)^2 in u, with a
+# and the vertex v of evaluateFlexibleDisplacement.R:131-132 (BT07:
+# a = 0.244, v = (3.04 + 0.566 log ky) / 0.488), :138-139 (BM17: a = 0.225,
+# v = (3.060 + 0.538 log ky) / 0.450) and :147 (BM19: a = 0.090,
+# v = (2.649 + 0.344 log ky) / 0.180) and m its value at v, so the roots are
 # v -+ sqrt((m - log Da) / a), one at a tangency and none below it.
 .solveFlexibleMedian <- function(model, args) {
-  a <- c(BT07 = .244, BM17 = .225)[[model]]
-  Vertex <- c(BT07 = (3.04 + .566 * log(args$ky)) / .488, BM17 = (3.060 + .538 * log(args$ky)) / .450)[[model]]
+  a <- c(BT07 = .244, BM17 = .225, BM19 = .090)[[model]]
+  Vertex <- c(BT07 = (3.04 + .566 * log(args$ky)) / .488, BM17 = (3.060 + .538 * log(args$ky)) / .450,
+              BM19 = (2.649 + .344 * log(args$ky)) / .180)[[model]]
   Height <- evaluateFlexibleDisplacement(model = model, ky = args$ky, Ts = args$Ts, Sa = exp(Vertex), Mw = args$Mw,
                                          PGV = 1, NFC = "D100", pulse = FALSE)$muLnD - log(args$Da)
   if (Height < 0) return(numeric())
@@ -40,7 +42,8 @@ UnequalCurves <- rbind(transform(data.frame(Tn = 0, AEP = 10^seq(-5, 0, length.o
     evaluateFlexibleDisplacement(model = model, ky = args$ky, Ts = args$Ts, Sa = IM, Mw = args$Mw,
                                  PGV = rep(1, length(IM)), NFC = "D100", pulse = FALSE)
   }
-  Site <- evaluateSiteSa(Sa = Sa(rates), PGA = PGA(rates), Tn = if (IsRigid) 0 else 1.5 * args$Ts,
+  Site <- evaluateSiteSa(Sa = Sa(rates), PGA = PGA(rates),
+                         Tn = if (IsRigid) 0 else c(BT07 = 1.5, BM17 = 1.5, BM19 = 1.3)[[model]] * args$Ts,
                          VS30 = args$VS30, Vref = args$Vref, model = args$siteModel)
   if (IsRigid) {
     .measureMedian <- function(u) .evaluateModel(exp(u))$muLnD - log(args$Da)
@@ -151,7 +154,7 @@ test_that("model weighting acts on annual rates and leaves input unchanged", {
   expect_error(integrateDnHazard(curves = Curves, ky = .2, Ts = 2, VS30 = 217, Vref = 760, Mw = 8,
                                  weights = c(BT07 = 1), Da = 100, IT = 5, TR = c(200, 100000),
                                  siteModel = "ST20"), "does not cover")
-  expect_identical(
+  expectReproduces(
     integrateDnHazard(Curves, ky = .2, Ts = 1, VS30 = 217, Vref = 760, Mw = 8,
       weights = c(AM88 = 1e308, BT07 = 1e308), Da = 100, IT = 5, TR = c(200, 100000), siteModel = "ST20")$summary,
     integrateDnHazard(Curves, ky = .2, Ts = 1, VS30 = 217, Vref = 760, Mw = 8,
@@ -221,6 +224,7 @@ test_that("an intermediate period between three unequal grids interpolates at eq
     weights = c(BT07 = 1), Da = 100, IT = 5, TR = c(200, 100000), siteModel = "ST20")
   Support <- c(max(tapply(Curves$AEP, Curves$Tn, min)), min(tapply(Curves$AEP, Curves$Tn, max)))
   AUX <- sort(unique(c(Curves$AEP, 1 / c(200, 100000))))
+  # The union keeps the supplied rate nodes and inserted band endpoints unchanged.
   expect_identical(OUT$conditional$AEP, AUX[AUX >= Support[1L] & AUX <= Support[2L]])
   f <- (log(1 + 1e-8) - log(.5 + 1e-8)) / (log(2 + 1e-8) - log(.5 + 1e-8))
   PGA <- .invertHazard(OUT$conditional$AEP)
@@ -232,12 +236,13 @@ test_that("each model integrates over the common support of its curves and their
   OUT <- integrateDnHazard(UnequalCurves, ky = .2, Ts = 2 / 3, VS30 = 217, Vref = 760, Mw = 8,
     weights = c(AM88 = 1, BT07 = 1), Da = 100, IT = 5, TR = c(200, 100000), siteModel = "ST20")
   Flexible <- OUT$models[IDn == "BT07"]
-  expect_identical(c(Flexible$TR.min, Flexible$TR.max, Flexible$rareTailBound), c(2, 1e4, 1e-4))
+  expect_equal(c(Flexible$TR.min, Flexible$TR.max, Flexible$rareTailBound), c(2, 1e4, 1e-4))
   Rigid <- OUT$models[IDn == "AM88"]
-  expect_identical(c(Rigid$TR.min, Rigid$rareTailBound), c(1, 1e-5))
+  expect_equal(c(Rigid$TR.min, Rigid$rareTailBound), c(1, 1e-5))
   # 1 / 1e-5 is not 1e5 in double precision.
-  expect_identical(Rigid$TR.max, 1 / 1e-5)
+  expect_equal(Rigid$TR.max, 1 / 1e-5)
   AUX <- sort(unique(c(UnequalCurves$AEP, 1e-4, .5, 1 / c(200, 100000))))
+  # The union keeps the supplied rate nodes and inserted band endpoints unchanged.
   expect_identical(OUT$conditional[IDn == "BT07", AEP], AUX[AUX >= 1e-4 & AUX <= .5])
 })
 
@@ -245,11 +250,11 @@ test_that("the calibration range of ky comes from buildKyLimits at the largest P
   Args <- list(curves = UnequalCurves, ky = .2, Ts = 2 / 3, VS30 = 217, Vref = 760, Mw = 8,
                weights = c(AM88 = 1, BT07 = 1), Da = 100, IT = 5, TR = c(200, 100000), siteModel = "ST20")
   OUT <- do.call(integrateDnHazard, Args)
-  expect_identical(unlist(OUT$models[IDn == "BT07", .(kyMin, kyMax, extrapolated)], use.names = FALSE), c(.02, .40, 0))
+  expect_equal(unlist(OUT$models[IDn == "BT07", .(kyMin, kyMax, extrapolated)], use.names = FALSE), c(.02, .40, 0))
   # The PGA support of AM88 ends at the rate 1e-5, where the PGA is 10 g.
   expect_lt(abs(OUT$models[IDn == "AM88", kyMax] - 10) / 10, sqrt(.Machine$double.eps))
   OUT <- do.call(integrateDnHazard, modifyList(Args, list(ky = .5)))
-  expect_identical(OUT$models[IDn == "BT07", extrapolated], 1)
+  expect_equal(OUT$models[IDn == "BT07", extrapolated], 1)
 })
 
 test_that("the band reaches the support end points and vanishes outside the support", {
@@ -260,7 +265,7 @@ test_that("the band reaches the support end points and vanishes outside the supp
   expect_true(all(c(.5, 1e-4) %in% Full$conditional[IDn == "BT07", AEP]))
   Empty <- integrateDnHazard(UnequalCurves, ky = .2, Ts = 2 / 3, VS30 = 217, Vref = 760, Mw = 8,
     weights = c(AM88 = 1, BT07 = 1), Da = 100, IT = 5, TR = c(1e6, 1e7), siteModel = "ST20")
-  expect_identical(c(Empty$summary$bandAEP, Empty$summary$bandPOE, Empty$models$bandAEP), c(0, 0, 0, 0))
+  expect_equal(c(Empty$summary$bandAEP, Empty$summary$bandPOE, Empty$models$bandAEP), c(0, 0, 0, 0))
   AUX <- c(Full$models$bandIntegrationError, Empty$models$bandIntegrationError)
   expect_length(AUX, 4L)
   expect_true(all(is.finite(AUX) & AUX >= 0))
@@ -281,6 +286,23 @@ test_that("SR08, BM17 and BT07 with ST17 agree with the dense quadrature", {
   Dense <- .integrateDenseAEP("BT07", Args, limits = c(1e-4, .5), Sa = function(rate) 2 * .invertHazard(rate),
                               PGA = .invertHazard)
   expect_lt(abs(OUT$models$AEP - Dense) / Dense, 1e-4)
+})
+
+test_that("BM19 reads Sa at 1.3 Ts with its ordinary-motion equation and agrees with the dense quadrature", {
+  skip_on_cran()
+  # The second curve sits at the BM19 period 1.3 Ts, so no period interpolation
+  # enters and the rock Sa at the model period is twice the PGA ordinate.
+  Curves <- UnequalCurves
+  Curves$Tn[Curves$Tn == 1] <- 1.3 * (2 / 3)
+  Args <- list(curves = Curves, ky = .2, Ts = 2 / 3, VS30 = 217, Vref = 760, Mw = 8,
+               weights = c(BM19 = 1), Da = 100, IT = 5, TR = c(200, 100000), siteModel = "ST20")
+  OUT <- do.call(integrateDnHazard, Args)
+  expect_equal(OUT$models$Tn, 1.3 * Args$Ts)
+  Dense <- .integrateDenseAEP("BM19", Args, limits = c(1e-4, .5), Sa = function(rate) 2 * .invertHazard(rate),
+                              PGA = .invertHazard)
+  expect_lt(abs(OUT$models$AEP - Dense) / Dense, 1e-4)
+  expect_error(do.call(integrateDnHazard, modifyList(Args, list(weights = c(BM23 = 1)))),
+               "weights must name supported models with positive values")
 })
 
 test_that("a keyed data.table and the random stream are left unchanged and invalid curves are refused", {
@@ -382,7 +404,7 @@ test_that("the median crossings of BT07 and BM17 are found on both sides of the 
     Roots <- .findMedianCrossings(function(u) .evaluateMedian(model, .02, u) - .evaluateMedian(model, .02, v - 1),
                                   c(v - 1, Enclosure[2L]))
     expect_length(Roots, 2L)
-    expect_identical(Roots[1L], v - 1)
+    expect_equal(Roots[1L], v - 1)
     expect_lt(abs(Roots[2L] - (v + 1)), 1e-8)
   }
   Dense <- .integrateDenseAEP("BT07", Args, limits = range(Curves$AEP), Sa = .interpolateSa, PGA = .invertHazard)

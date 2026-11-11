@@ -32,9 +32,9 @@ given values, with the selected \code{columns}. It writes nothing.
 \details{
 The table is named as in the effects record of \code{\link[=processProject]{processProject()}} and
 in \code{\link[=listProjectTables]{listProjectTables()}}: with \code{siteID = NULL}, one of the global tables
-\code{ShearTable}, \code{DnPlotTable}, \code{DnTable} and \code{kmaxTable} at the root of
+\code{ShearTable}, \code{ShearDraws}, \code{DnPlotTable}, \code{DnTable}, \code{kmaxTable} and \code{DnPOETable} at the root of
 \code{path.tables}; with a site identifier, one of the tables \code{DnDraws},
-\code{PGATable}, \code{DnTable} and \code{kmaxTable} of that site under
+\code{PGATable}, \code{DnTable}, \code{kmaxTable} and \code{DnPOETable} of that site under
 \verb{<ID.gmdp>/<siteID>/}, which locates them with the \code{ID.gmdp} of the
 contract. The contract is read and checked, and its paths resolved
 against \code{root}, as \code{\link[=processProject]{processProject()}} does, and the table is read as

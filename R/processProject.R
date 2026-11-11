@@ -1,23 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Run the steps of a project
 #'
 #' Reads the project contract, plans the selected steps and publishes their
 #' tables under `path.tables`, file by file, returning the record of
 #' what it published. The steps are named after the table each one
-#' publishes and always run in the order `ShearTable`, `DnTable`,
-#' `kmaxTable`.
+#' publishes and always run in the order `ShearTable`, `ShearDraws`,
+#' `DnTable`, `kmaxTable`, `DnPOETable`; `ShearDraws` runs only when
+#' `steps` names it.
 #'
 #' Everything the run decides is resolved before its first calculation, and
 #' a dry run makes the same checks: the contract keys of the selected steps,
-#' the paths, the sites and the destinations. For `ShearTable`, the plan
-#' also applies to the geometries, the materials, the pairs and `Vref.gmdp`
-#' the rules that [buildShearTable()] applies to its arguments, and to the
-#' USCS codes of every selected material the rule of [sampleSoilLayers()].
+#' the paths, the sites and the destinations. For `ShearTable` and
+#' `ShearDraws`, the plan also applies to the geometries, the materials, the
+#' pairs and `Vref.gmdp` the rules that [buildShearTable()] applies to its
+#' arguments, and to the USCS codes of every selected material the rule of
+#' [sampleSoilLayers()]. For `ShearDraws`, it also requires `seed` and, unless
+#' `ShearTable` runs before it, the published `ShearTable.Rds`.
 #' For `DnTable` and `kmaxTable`, the inputs that no selected step produces
 #' must exist, and what the shear table and the MCE table hold is checked
-#' before those steps calculate anything: for `DnTable`, the mean rows of
-#' the shear table and the MCE demand of every selected site over the
-#' period `1.5 * max(Ts)` of those rows, as [buildDnTables()] requires them;
-#' for `kmaxTable`, the heights `Hs` from which [buildKmaxTable()] derives
+#' before those steps calculate anything: for `DnTable`, the reference rows
+#' of the shear table, the paired realizations in `ShearDraws.Rds` and the
+#' MCE demand over `1.5 * max(Ts)` of the columns used, as [buildDnTables()]
+#' requires them. A dry run cannot check columns that a selected
+#' `ShearDraws` step has yet to produce; it checks the reference rows then.
+#' For `kmaxTable`, it checks the heights `Hs` from which [buildKmaxTable()] derives
 #' its displacements. A dry run makes the checks of `DnTable` first and a
 #' run the check of the heights first, as each phase of `newmark` 1.7.1 does,
 #' so that when both fail the two report different failures. With
@@ -46,25 +55,25 @@
 #'   \item{`path.data`}{Directory of the hazard table `MCETable.Rds`, read
 #'     only. `DnTable`.}
 #'   \item{`path.uhs`}{Directory holding `<ID.gmdp>/<siteID>/UHSRock.Rds`,
-#'     read only; the sites are its directories that hold one. `DnTable`
-#'     and `kmaxTable`.}
+#'     read only; the sites are its directories that hold one. `DnTable`,
+#'     `kmaxTable` and `DnPOETable`.}
 #'   \item{`path.calc`}{JSON of the classical hazard calculation, whose
 #'     finite positive `job.calculation.truncation_level` truncates the
 #'     sampling of the rock demand. `DnTable`.}
 #'   \item{`Vref.gmdp`}{Reference rock velocity in m/s, one number. Every
-#'     step; `DnTable` and `kmaxTable` require 760.}
+#'     step; the site steps require 760.}
 #'   \item{`ID.gmdp`, `TR.gmdp`, `NS`, `subduction`, `Dn_weights`}{Identifier
 #'     of the hazard model (a letter followed by letters, digits, `_` or
 #'     `-`), return periods in years (sorted, duplicates dropped),
 #'     realizations per cell (a positive whole number), the regime (`true`
 #'     for subduction) and the 0/1 switches of the displacement models, which
 #'     [selectDisplacementModels()] turns into the weights of the active
-#'     models. `DnTable` and `kmaxTable`.}
+#'     models. `DnTable`, `kmaxTable` and `DnPOETable`.}
 #'   \item{`Mw.gmdp`}{Moment magnitude of the scenarios: one number for every
 #'     demand, or an object that names each return period of `TR.gmdp` and
 #'     `MCE` with its magnitude. `DnTable`.}
 #'   \item{`DaH.gmdp`}{Admissible displacements, distinct positive
-#'     percentages of the height `Hs`. `kmaxTable`.}
+#'     percentages of the height `Hs`. `kmaxTable` and `DnPOETable`.}
 #'   \item{`DN_PARALLEL`, `DN_WORKERS`}{Optional parallel controls of
 #'     `DnTable`: `true` (the default) or `false`, and a positive whole
 #'     number of workers, by default the cores that R detects minus one, at
@@ -75,13 +84,13 @@
 #'     them.}
 #'   \item{`uscs`, `IDm`}{Object of USCS code arrays indexed by material, and
 #'     the distinct selected materials, each one a key of `uscs`.
-#'     `ShearTable`.}
+#'     `ShearTable` and `ShearDraws`.}
 #'   \item{`Hs`, `lo.min`, `lo.max`, `s.min`, `s.max`}{Range form of the
 #'     geometries: the heights in metres, and the first and last truncation
 #'     ratio and slope, spread evenly over the heights in their declared
 #'     order (they are not a minimum and a maximum) and passed to
-#'     [buildGeometry()]. `ShearTable`, unless `geometryTable` is declared;
-#'     the heights have no default.}
+#'     [buildGeometry()]. `ShearTable` and `ShearDraws`, unless
+#'     `geometryTable` is declared; the heights have no default.}
 #'   \item{`geometryTable`}{Optional array of `IDg`, `Hs`, `b` and `s` row
 #'     objects, used instead of the range form.}
 #'   \item{`pairs`}{Optional array of `IDg` and `IDm` row objects restricting
@@ -90,7 +99,11 @@
 #'     the `ShearTable` step. A contract without it, such as one written for
 #'     `newmark` 1.7.1, runs that step on the caller's random stream, as 1.7.1
 #'     does without a seed, and the contract alone does not make its table
-#'     reproducible.}
+#'     reproducible. `ShearDraws` requires it.}
+#'   \item{`NS.shear`}{Optional realizations per pair of `ShearDraws`, a
+#'     whole number of at least 100; without it, 100. Realizations beyond
+#'     100 extend the population of the shear table without changing it.
+#'     `ShearDraws`, the only step that reads it.}
 #' }
 #'
 #' @section Steps:
@@ -100,8 +113,25 @@
 #' 0.90, 0.95 and 0.98, and publishes `<path.tables>/ShearTable.Rds` with
 #' [saveRDS()]. Its message reports the seed, or `seed none` without one.
 #'
+#' `ShearDraws` reads `ShearTable.Rds` under `path.tables` (the one the
+#' `ShearTable` step has just published, when both run), calls [set.seed()]
+#' with `seed` and [buildShearDraws()] with the inputs and levels of
+#' `ShearTable` and `NS.shear` realizations per pair, and compares the shear
+#' table it returns with the one it read, value for value: the same column
+#' names in the same order and, in each column, the same values of the same
+#' type ([identical()]), whatever the keys and indices of the two tables.
+#' When they differ it stops naming the columns that differ and publishes
+#' nothing; otherwise it publishes the
+#' realizations as `<path.tables>/ShearDraws.Rds` with [saveRDS()].
+#' Realizations whose fitted `mo` is negative are published with `mo` forced
+#' to 0 and with the `an` and `Ts` of that homogeneous beam, as
+#' [buildShearDraws()] returns them, and the message of the step reports the
+#' seed, `NS.shear` and how many realizations were forced. `ShearTable.Rds`
+#' is never written by this step.
+#'
 #' `DnTable` reads `ShearTable.Rds` under `path.tables` (the one the
-#' `ShearTable` step has just published, when both run), `MCETable.Rds` and
+#' `ShearTable` step has just published, when both run), `ShearDraws.Rds`,
+#' `MCETable.Rds` and
 #' the `UHSRock.Rds` of each selected site, which it processes in
 #' alphabetical order. For a site it calls [buildDnTables()] with `ID.gmdp`,
 #' `TR.gmdp`, `Vref.gmdp`, `Mw.gmdp`, `NS`, the weights that
@@ -117,7 +147,9 @@
 #' without that file stays out of them. [buildDnTables()] seeds each site
 #' and demand with its own fixed seed, so the step replaces the caller's
 #' random stream and the tables of a site do not depend on the sites run
-#' with it.
+#' with it. Its unchanged `NS` movements per pair cycle through the
+#' ShearDraws columns in realization order. The same column supplies Ts
+#' and VS30; the common ky grid and PGATable use the mean-row reference.
 #'
 #' `kmaxTable` reads `ShearTable.Rds` under `path.tables` and, for each
 #' selected site in alphabetical order, its `DnDraws.Rds` and its
@@ -135,13 +167,16 @@
 #'
 #' The inputs of the site steps that no selected step produces must exist
 #' when they are planned: `ShearTable.Rds` under `path.tables`,
-#' `MCETable.Rds` for `DnTable`, and the `DnDraws.Rds` and `PGATable.csv`
-#' of each selected site for `kmaxTable` without `DnTable`.
+#' `ShearDraws.Rds` and `MCETable.Rds` for `DnTable`, and the `DnDraws.Rds` and `PGATable.csv`
+#' of each selected site for `kmaxTable` without `DnTable`. `DnPOETable`
+#' requires the same shear table and site draws, without `PGATable.csv`.
 #'
 #' @section Publication:
-#' The tables are published in groups: the shear table; the three files
+#' The tables are published in groups: the shear table; the shear
+#' realizations; the three files
 #' of a site and the two global files of `DnTable`; the site and the global
-#' `kmaxTable`. Every file of a group is first written to a temporary file
+#' `kmaxTable`; the site and global `DnPOETable`. Every file of a group is
+#' first written to a temporary file
 #' `.<name>.<suffix>` beside its destination, in the format its name
 #' declares, and then each destination is replaced by renaming its
 #' temporary file, in the order of the group. Each rename is atomic; the
@@ -174,15 +209,27 @@
 #' `FALSE`, with at most a warning, so it is reported as an error naming
 #' its destination and the reason.
 #'
+#' @section Displacement exceedance product:
+#' `DnPOETable` reads the accepted shear table and each selected site's
+#' `DnDraws.Rds`, counts pointwise exceedances with [buildDnPOETable()] and
+#' publishes the site `DnPOETable.Rds`. It assembles the global file from
+#' available site tables with [assembleDnPOETables()]. It uses `ID.gmdp`,
+#' `TR.gmdp`, `NS`, `Dn_weights`, `subduction` and `DaH.gmdp`; site discovery
+#' uses `path.uhs`, as for the other site steps. It needs neither PGATable
+#' nor the kmaxTable step, consumes no random numbers and uses the same
+#' publication and partial-failure rules. The fractions are conditional on
+#' each demand and the population of the stored draws, not integrated hazard.
+#'
 #' @param file Path of the JSON contract, resolved against `root` when it is
 #'   relative.
 #' @param root Existing project root against which the contract and its
 #'   relative paths are resolved; required, with no default. The CLI passes
 #'   the working directory when `--root` is absent.
-#' @param steps Any of `"ShearTable"`, `"DnTable"` and `"kmaxTable"`; they
-#'   run in that order.
+#' @param steps Any of `"ShearTable"`, `"ShearDraws"`, `"DnTable"`,
+#'   `"kmaxTable"` and `"DnPOETable"`; they run in that order. The default
+#'   selects every step except `"ShearDraws"`.
 #' @param sites Identifiers of the sites to process; empty selects every
-#'   site found under `path.uhs`. Only `DnTable` and `kmaxTable` process
+#'   site found under `path.uhs`. `DnTable`, `kmaxTable` and `DnPOETable` process
 #'   sites, and an unknown site stops them before anything is written. The
 #'   global tables are rebuilt from the tables of every site found,
 #'   selected or not.
@@ -215,43 +262,50 @@
 #' }
 #' unlink(Root, recursive = TRUE)
 processProject <- function(file = "newmark.json", root,
-                           steps = c("ShearTable", "DnTable", "kmaxTable"),
+                           steps = c("ShearTable", "DnTable", "kmaxTable", "DnPOETable"),
                            sites = character(), dryRun = FALSE) {
   if (!is.logical(dryRun) || length(dryRun) != 1L || is.na(dryRun)) stop("dryRun must be TRUE or FALSE")
   Plan <- .planProject(file = file, root = root, steps = steps, sites = sites)
   if (dryRun) {
     # The checks of the site steps in the order of the dry run of newmark
     # 1.7.1: DnTable first, then the heights of kmaxTable.
-    if (any(c("DnTable", "kmaxTable") %in% Plan$steps) && !"ShearTable" %in% Plan$steps) {
+    if (any(c("DnTable", "kmaxTable", "DnPOETable") %in% Plan$steps) && !"ShearTable" %in% Plan$steps) {
       Shear <- readRDS(Plan$shear)
-      if ("DnTable" %in% Plan$steps) .readDnInputs(Plan, Shear)
+      if ("DnTable" %in% Plan$steps) .readDnInputs(Plan, Shear, dryRun = TRUE)
       if ("kmaxTable" %in% Plan$steps) .checkKmaxHeights(Plan, Shear)
+      if ("DnPOETable" %in% Plan$steps) {
+        .checkDnPOEArguments(Shear, modelID = Plan$model, TR = Plan$TR, weights = Plan$weights, DaH = Plan$DaH)
+      }
     }
     return(invisible(.describePlan(Plan)))
   }
   invisible(.publishRun(function(ledger) {
     if ("ShearTable" %in% Plan$steps) .runShearTable(Plan, ledger)
-    if (!any(c("DnTable", "kmaxTable") %in% Plan$steps)) return()
+    if ("ShearDraws" %in% Plan$steps) .runShearDraws(Plan, ledger)
+    if (!any(c("DnTable", "kmaxTable", "DnPOETable") %in% Plan$steps)) return()
     # The shear table of the site steps, the one that ShearTable has just
     # published when it runs, checked in the order of the run of newmark
     # 1.7.1: the heights of kmaxTable before anything of DnTable.
-    ledger$step <- intersect(c("kmaxTable", "DnTable"), Plan$steps)[[1L]]
+    ledger$step <- intersect(c("kmaxTable", "DnTable", "DnPOETable"), Plan$steps)[[1L]]
     Shear <- readRDS(Plan$shear)
     if ("kmaxTable" %in% Plan$steps) .checkKmaxHeights(Plan, Shear)
     if ("DnTable" %in% Plan$steps) .runDnTable(Plan, Shear, ledger)
     if ("kmaxTable" %in% Plan$steps) .runKmaxTable(Plan, Shear, ledger)
+    if ("DnPOETable" %in% Plan$steps) .runDnPOETable(Plan, Shear, ledger)
   }))
 }
 
 # Steps in their order of execution, and the products each one publishes:
 # per site under <path.tables>/<ID.gmdp>/<siteID>/, then the globals at the
 # root of path.tables, each list in publication order.
-STEPS <- c("ShearTable", "DnTable", "kmaxTable")
+STEPS <- c("ShearTable", "ShearDraws", "DnTable", "kmaxTable", "DnPOETable")
 PRODUCTFILES <- list(
   ShearTable = list(site = character(), global = c(ShearTable = "ShearTable.Rds")),
+  ShearDraws = list(site = character(), global = c(ShearDraws = "ShearDraws.Rds")),
   DnTable = list(site = c(DnDraws = "DnDraws.Rds", PGATable = "PGATable.csv", DnTable = "DnTable.Rds"),
                  global = c(DnPlotTable = "DnPlotTable.Rds", DnTable = "DnTable.Rds")),
-  kmaxTable = list(site = c(kmaxTable = "kmaxTable.Rds"), global = c(kmaxTable = "kmaxTable.Rds"))
+  kmaxTable = list(site = c(kmaxTable = "kmaxTable.Rds"), global = c(kmaxTable = "kmaxTable.Rds")),
+  DnPOETable = list(site = c(DnPOETable = "DnPOETable.Rds"), global = c(DnPOETable = "DnPOETable.Rds"))
 )
 
 # The quantile levels of the ShearTable product of newmark 1.7.1.
@@ -260,7 +314,7 @@ SHEARLEVELS <- c(.02, .05, .10, .16, "mean", .84, .90, .95, .98)
 # Schema 1 of the contract: every key a step reads. Anything else is refused.
 CONTRACTKEYS <- c("path", "Vref.gmdp", "ID.gmdp", "TR.gmdp", "NS", "Mw.gmdp", "subduction", "Dn_weights",
                   "DaH.gmdp", "uscs", "IDm", "geometryTable", "Hs", "lo.min", "lo.max", "s.min", "s.max",
-                  "pairs", "seed", "DN_PARALLEL", "DN_WORKERS")
+                  "pairs", "seed", "NS.shear", "DN_PARALLEL", "DN_WORKERS")
 PATHKEYS <- c("tables", "data", "uhs", "calc")
 
 # Everything the run decides before it calculates or writes: the contract of
@@ -268,7 +322,7 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
 # selected step produces and every destination. It creates nothing.
 .planProject <- function(file, root, steps, sites) {
   if (!is.character(steps) || !length(steps) || anyNA(steps) || any(!steps %in% STEPS)) {
-    stop("steps must select ShearTable, DnTable or kmaxTable")
+    stop("steps must select ShearTable, ShearDraws, DnTable, kmaxTable or DnPOETable")
   }
   if (!is.character(sites) || anyNA(sites)) stop("sites must be a character vector of site identifiers")
   Root <- .resolveRoot(root)
@@ -277,8 +331,14 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
   Plan <- list(steps = STEPS[STEPS %in% steps], root = Root, contract = PATH.contract,
                products = .readPath(Contract, "tables", PATH.contract),
                Vref = .readNumber(Contract, "Vref.gmdp", PATH.contract), selected = character())
-  if ("ShearTable" %in% Plan$steps) Plan <- c(Plan, .planShearTable(Contract, PATH.contract, Vref = Plan$Vref))
-  if (any(c("DnTable", "kmaxTable") %in% Plan$steps)) Plan <- .planSites(Plan, Contract, sites)
+  # The shear table that ShearDraws and the site steps read.
+  Plan$shear <- file.path(.resolvePath(Plan$products, Root), "ShearTable.Rds")
+  Plan$draws <- file.path(.resolvePath(Plan$products, Root), "ShearDraws.Rds")
+  if (any(c("ShearTable", "ShearDraws") %in% Plan$steps)) {
+    Plan <- c(Plan, .planShearTable(Contract, PATH.contract, Vref = Plan$Vref))
+  }
+  if ("ShearDraws" %in% Plan$steps) Plan <- .planShearDraws(Plan, Contract)
+  if (any(c("DnTable", "kmaxTable", "DnPOETable") %in% Plan$steps)) Plan <- .planSites(Plan, Contract, sites)
   Plan$destinations <- .planDestinations(Plan)
   Plan
 }
@@ -319,7 +379,20 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
   list(seed = Seed, geometry = Geometry, USCS = USCS, IDm = IDm, pairs = Pairs)
 }
 
-# The keys, paths, sites and inputs of DnTable and kmaxTable: the run reads
+# What ShearDraws adds to the plan of the shear table: the seed it requires,
+# the realizations per pair of NS.shear and the published shear table it
+# must reproduce, which exists unless ShearTable runs before it.
+.planShearDraws <- function(plan, contract) {
+  if (is.null(plan$seed)) {
+    stop(plan$contract, " must define seed for the ShearDraws step, which draws the realizations of the published ",
+         "ShearTable again from it")
+  }
+  plan$NS.shear <- if (.hasKey(contract, "NS.shear")) .readWhole(contract, "NS.shear", plan$contract, minimum = 100) else 100L
+  if (!"ShearTable" %in% plan$steps) .checkInput(plan$shear, "written by the ShearTable step")
+  plan
+}
+
+# The keys, paths, sites and inputs of the site steps: the run reads
 # the shear table, the hazard tables and the site products named here.
 .planSites <- function(plan, contract, sites) {
   PATH.contract <- plan$contract
@@ -351,41 +424,48 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
       max(1L, parallel::detectCores(logical = TRUE) - 1L, na.rm = TRUE)
     }
   }
-  if ("kmaxTable" %in% plan$steps) {
+  if (any(c("kmaxTable", "DnPOETable") %in% plan$steps)) {
     plan$DaH <- .readNumbers(contract, "DaH.gmdp", PATH.contract)
     if (any(plan$DaH <= 0) || anyDuplicated(plan$DaH)) {
       stop(PATH.contract, " must define DaH.gmdp as distinct positive percentages of Hs")
     }
   }
   plan$rockDir <- file.path(.resolvePath(.readPath(contract, "uhs", PATH.contract), plan$root), plan$model)
-  ProductsDir <- .resolvePath(plan$products, plan$root)
-  plan$shear <- file.path(ProductsDir, "ShearTable.Rds")
-  plan$modelDir <- file.path(ProductsDir, plan$model)
+  plan$modelDir <- file.path(.resolvePath(plan$products, plan$root), plan$model)
   if (!"ShearTable" %in% plan$steps) .checkInput(plan$shear, "written by the ShearTable step")
-  if ("DnTable" %in% plan$steps) .checkInput(plan$MCE, "a hazard product of the project")
+  if ("DnTable" %in% plan$steps) {
+    .checkInput(plan$MCE, "a hazard product of the project")
+    if (!"ShearDraws" %in% plan$steps) .checkInput(plan$draws, "written by the ShearDraws step")
+  }
   plan$sites <- .listRockSites(plan$rockDir)
   if (length(setdiff(sites, plan$sites))) {
     stop("sites names sites without UHSRock.Rds under ", plan$rockDir, ": ",
          paste(setdiff(sites, plan$sites), collapse = ", "))
   }
   plan$selected <- if (length(sites)) plan$sites[plan$sites %in% sites] else plan$sites
-  if ("kmaxTable" %in% plan$steps && !"DnTable" %in% plan$steps) {
+  if (any(c("kmaxTable", "DnPOETable") %in% plan$steps) && !"DnTable" %in% plan$steps) {
     for (Site in plan$selected) {
       .checkInput(file.path(plan$modelDir, Site, "DnDraws.Rds"), "written by the DnTable step")
-      .checkInput(file.path(plan$modelDir, Site, "PGATable.csv"), "written by the DnTable step")
+      if ("kmaxTable" %in% plan$steps) {
+        .checkInput(file.path(plan$modelDir, Site, "PGATable.csv"), "written by the DnTable step")
+      }
     }
   }
   plan
 }
 
 # What DnTable reads and checks with the validators of its family before it
-# calculates anything: the mean rows of the shear table and the MCE demand
-# of every selected site over the period 1.5 * max(Ts) of those rows.
-.readDnInputs <- function(plan, shear) {
+# calculates anything. A dry run cannot read realizations a selected
+# ShearDraws step has yet to produce.
+.readDnInputs <- function(plan, shear, dryRun) {
   Pairs <- .checkDnShear(shear, plan$Vref)
+  Draws <- if (!dryRun || !"ShearDraws" %in% plan$steps) {
+    .checkDnProfiles(readRDS(plan$draws), shear = Pairs, Vref = plan$Vref)[realization <= plan$NS]
+  }
   MCE <- readRDS(plan$MCE)
-  for (Site in plan$selected) .checkDnMCE(MCE, Site, plan$Vref, 1.5 * max(Pairs$Ts))
-  list(MCE = MCE, pairs = nrow(Pairs))
+  Ts <- if (is.null(Draws)) Pairs$Ts else Draws$Ts
+  for (Site in plan$selected) .checkDnMCE(MCE, Site, plan$Vref, 1.5 * max(Ts))
+  list(MCE = MCE, pairs = nrow(Pairs), draws = Draws)
 }
 
 # The heights from which buildKmaxTable() derives its displacements,
@@ -442,12 +522,50 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
           path = Destinations$path, count = nrow(Shear))
 }
 
+# The realizations of the published shear table, drawn again from the seed
+# and published only when their summary is that table value for value.
+.runShearDraws <- function(plan, ledger) {
+  ledger$step <- "ShearDraws"
+  Published <- as.data.table(readRDS(plan$shear))
+  set.seed(plan$seed)
+  # The realizations whose negative mo buildShearDraws() forced to 0, which
+  # its note counts; the note itself reaches the caller.
+  Forced <- 0L
+  Shear <- withCallingHandlers(
+    buildShearDraws(plan$geometry, USCS = plan$USCS, IDm = plan$IDm, Vref = plan$Vref, levels = SHEARLEVELS,
+                    pairs = plan$pairs, NS = plan$NS.shear),
+    moduleNote = function(m) if (identical(m$operation, "buildShearDraws")) Forced <<- m$count
+  )
+  Difference <- .compareShearTables(Published, Shear$ShearTable)
+  if (!is.null(Difference)) {
+    stop(plan$shear, " is not the shear table that the contract and its seed draw, so ShearDraws publishes nothing: ",
+         Difference)
+  }
+  Destinations <- plan$destinations[plan$destinations$step == "ShearDraws"]
+  .publishGroup(ledger, Destinations, list(Shear$ShearDraws))
+  .inform("moduleProgress", "ShearDraws wrote ShearDraws (", nrow(Shear$ShearDraws), " rows, seed ", plan$seed,
+          ", NS.shear ", plan$NS.shear, ", negative mo forced to 0 in ", Forced, " realization(s))",
+          operation = "process", phase = "ShearDraws", path = Destinations$path, count = nrow(Shear$ShearDraws))
+}
+
+# How a published shear table differs from the drawn one, or NULL when it
+# does not: the column names in their order, then each column, value by value
+# and with its type, by identical(). The keys and indices of the tables are
+# not compared.
+.compareShearTables <- function(published, drawn) {
+  if (!identical(names(published), names(drawn))) {
+    return(paste0("its columns are ", toString(names(published)), " instead of ", toString(names(drawn))))
+  }
+  Same <- mapply(identical, published, drawn)
+  if (!all(Same)) paste0("the values of ", toString(names(drawn)[!Same]), " differ")
+}
+
 # The products of each selected site, published group by group in the order
 # of discovery, and then the global ones, rebuilt from the DnTable.Rds that
 # every site found holds once the selected ones are published.
 .runDnTable <- function(plan, shear, ledger) {
   ledger$step <- "DnTable"
-  Inputs <- .readDnInputs(plan, shear)
+  Inputs <- .readDnInputs(plan, shear, dryRun = FALSE)
   Workers <- if (plan$parallel) min(plan$workers, Inputs$pairs) else 1L
   Destinations <- plan$destinations[plan$destinations$step == "DnTable"]
   for (Site in plan$selected) {
@@ -455,7 +573,7 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
     Rock <- readRDS(file.path(plan$rockDir, Site, "UHSRock.Rds"))
     Products <- buildDnTables(Rock, MCE = Inputs$MCE, shear = shear, modelID = plan$model, siteID = Site,
                               TR = plan$TR, Vref = plan$Vref, Mw = plan$Mw, NS = plan$NS, weights = plan$weights,
-                              zTrunc = plan$truncation, workers = Workers)
+                              zTrunc = plan$truncation, workers = Workers, draws = Inputs$draws)
     Products$PGATable <- buildPGATable(Rock, MCE = Inputs$MCE, shear = shear, modelID = plan$model,
                                        siteID = Site, TR = plan$TR)
     Group <- Destinations[Destinations$siteID %in% Site]
@@ -496,6 +614,29 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
   Global <- assembleKmaxTables(stats::setNames(lapply(FILES[OK], readRDS), plan$sites[OK]),
                                shear = shear, modelID = plan$model, TR = plan$TR, weights = plan$weights,
                                DaH = plan$DaH)
+  .publishGroup(ledger, Destinations[is.na(Destinations$siteID)], list(Global))
+}
+
+# Stored displacement exceedances, using the existing publication protocol.
+.runDnPOETable <- function(plan, shear, ledger) {
+  ledger$step <- "DnPOETable"
+  Destinations <- plan$destinations[plan$destinations$step == "DnPOETable"]
+  .checkDnPOEArguments(shear, modelID = plan$model, TR = plan$TR, weights = plan$weights, DaH = plan$DaH)
+  for (Site in plan$selected) {
+    ledger$siteID <- Site
+    Draws <- readRDS(file.path(plan$modelDir, Site, "DnDraws.Rds"))
+    Table <- buildDnPOETable(Draws, shear = shear, modelID = plan$model, siteID = Site, TR = plan$TR,
+                             NS = plan$NS, weights = plan$weights, DaH = plan$DaH)
+    Group <- Destinations[Destinations$siteID %in% Site]
+    .publishGroup(ledger, Group, list(Table))
+    .inform("moduleProgress", "DnPOETable wrote site ", Site, operation = "process", phase = "DnPOETable",
+            unit = Site, path = Group$path)
+  }
+  ledger$siteID <- NA_character_
+  FILES <- file.path(plan$modelDir, plan$sites, "DnPOETable.Rds")
+  OK <- file.exists(FILES)
+  Global <- assembleDnPOETables(stats::setNames(lapply(FILES[OK], readRDS), plan$sites[OK]), shear = shear,
+                                modelID = plan$model, TR = plan$TR, weights = plan$weights, DaH = plan$DaH)
   .publishGroup(ledger, Destinations[is.na(Destinations$siteID)], list(Global))
 }
 
@@ -550,7 +691,7 @@ PATHKEYS <- c("tables", "data", "uhs", "calc")
     ledger$path <- destinations$path[[i]]
     switch(sub("^.*[.]", "", destinations$file[[i]]),
            Rds = saveRDS(objects[[i]], Temps[[i]]),
-           csv = fwrite(objects[[i]], Temps[[i]], na = "NA"),
+           csv = fwrite(objects[[i]], Temps[[i]], na = "NA", eol = "\n"),
            stop("no product format for ", destinations$path[[i]]))
   }
   for (i in seq_along(Temps)) {

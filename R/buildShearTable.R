@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Shear table of release 1.7.1 from geometries and material pools
 #'
 #' Compatibility route that reproduces, value for value, the `ShearTable`
@@ -40,7 +44,9 @@
 #' The realizations are summarized newest first, as the original
 #' accumulation did, so the means reproduce exactly. The general route
 #' ([characterizeProfile()], [summarizeProfiles()]) rounds nothing and does
-#' not compute the threshold ratios.
+#' not compute the threshold ratios. [buildShearDraws()] draws the same
+#' realizations, keeps them with the beam period of each one and returns
+#' this table beside them.
 #'
 #' @param geometry A data.frame or data.table with `IDg`, `Hs`, `b` and
 #'   `s`, such as [buildGeometry()] returns.
@@ -65,34 +71,10 @@
 buildShearTable <- function(geometry, USCS, IDm, Vref, levels, pairs = NULL) {
   Problem <- .diagnoseShearArguments(geometry, USCS = USCS, IDm = IDm, Vref = Vref, levels = levels, pairs = pairs)
   if (!is.null(Problem)) stop(Problem)
-  # Resolved in the function scope, so a USCS column of the caller's table
-  # cannot shadow the material pools inside the grouped evaluation.
-  materialPool <- function(id) USCS[[id]]
-  Pairs <- CJ(IDm, IDg = geometry$IDg)
-  if (!is.null(pairs)) Pairs <- as.data.table(pairs)[, .(IDm, IDg)]
-  # Quantile rows precede the mean row, as the original summary did.
-  Levels <- c(levels[levels != "mean"], if (any(levels == "mean")) "mean")
-  MaterialTable <- as.data.table(geometry)[Pairs, on = .(IDg), allow.cartesian = TRUE]
-  set(MaterialTable, j = "Vref", value = Vref)
-  ShearTable <- MaterialTable[, {
-    Profiles <- .legacyProfile(simulateSoilProfiles(Hs = Hs, USCS = materialPool(IDm), NS = 100, h = 1,
-                                                    water = 0, POP = 100, Vref = 760,
-                                                    m1 = data.frame(IP = c(0, 20, 40, 60, 80, 100),
-                                                                    m1 = c(0, 0.18, 0.30, 0.41, 0.48, 0.48))))
-    OUT <- summarizeProfiles(Profiles[rev(seq_len(nrow(Profiles)))], levels = Levels,
-                             properties = c("Go", "mo", "Ts", "VSo", "VS30", "Z500", "Z1000"))
-    OUT[, `:=`(Go = round(Go, 1), mo = round(mo, 3), Ts = round(Ts, 2), VSo = round(VSo, 1),
-               VS30 = round(VS30, 1), Z500 = round(Z500, 1))]
-    OUT[level != "mean", Z1000 := round(Z1000, 1)]
-    data.table(POP = 100, Hw = 0, USCS = paste0(materialPool(IDm), collapse = " "),
-               OUT[, .(Go, mo, Ts, VSo, VS30, Z500, Z1000, level)])
-  }, by = .(Hs, b, s, Vref, IDm, IDg)]
-  ShearTable[, lo := round(b / (2 * Hs * s + b), 3)]
-  Roots <- evaluateRoot(buildRootModel(mode = 1, method = "nlm"), mo = ShearTable$mo, lo = ShearTable$lo)
-  Roots[!Roots$withinSupport, an := evaluateRoot(buildRootModel(mode = 1, method = "exact"), mo = mo, lo = lo)$an]
-  ShearTable[, an := round(Roots$an, 4)]
-  ShearTable[, Ts := round(evaluateBeamPeriod(Hs = Hs, lo = lo, mo = mo, VSo = VSo, an = an), 3)]
-  ShearTable[]
+  Shear <- .drawShearTable(geometry, USCS = USCS, IDm = IDm, Vref = Vref, levels = levels, pairs = pairs,
+                           NS = 100L)$ShearTable
+  .evaluateLegacyPeriod(Shear)
+  Shear[]
 }
 
 # The first rule of buildShearTable() that its arguments break, as the

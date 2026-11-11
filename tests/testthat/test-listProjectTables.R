@@ -126,3 +126,22 @@ test_that("the listing writes nothing", {
   expect_identical(productTree(Root), Tree)
   expect_identical(list.files(tempdir(), recursive = TRUE, all.files = TRUE, no.. = TRUE), Temporary)
 })
+
+test_that("ShearDraws.Rds is listed after the shear table and queried as a global table", {
+  Root <- productProject()
+  on.exit(unlink(Root, recursive = TRUE), add = TRUE)
+  Draws <- data.table::data.table(IDg = "S27", IDm = "U4", realization = 1:3, Ts = c(0.31, 0.29, 0.35),
+                                  VS30 = c(300, 310, 290))
+  saveRDS(Draws, file.path(Root, "products", "ShearDraws.Rds"))
+  Listing <- listProjectTables("newmark.json", root = Root)
+  expect_identical(Listing$table[1:2], c("ShearTable", "ShearDraws"))
+  expect_identical(as.list(Listing[2L, .(step, siteID, path, rows)]),
+                   list(step = "ShearDraws", siteID = NA_character_, path = "products/ShearDraws.Rds", rows = 3L))
+  Query <- queryProjectTable("newmark.json", root = Root, table = "ShearDraws", siteID = NULL,
+                             where = list(realization = c("1", "3")), columns = c("realization", "Ts", "VS30"))
+  # Input copy: the query returns the stored rows unchanged.
+  expect_identical(Query, Draws[c(1L, 3L), .(realization, Ts, VS30)])
+  expect_error(queryProjectTable("newmark.json", root = Root, table = "ShearDraws", siteID = "CFD", where = list(),
+                                 columns = NULL),
+               "ShearDraws is a global table: siteID must be NULL", fixed = TRUE)
+})

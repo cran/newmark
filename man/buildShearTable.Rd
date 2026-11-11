@@ -69,7 +69,9 @@ use it, the root to 4 decimals and the beam period to 3.
 The realizations are summarized newest first, as the original
 accumulation did, so the means reproduce exactly. The general route
 (\code{\link[=characterizeProfile]{characterizeProfile()}}, \code{\link[=summarizeProfiles]{summarizeProfiles()}}) rounds nothing and does
-not compute the threshold ratios.
+not compute the threshold ratios. \code{\link[=buildShearDraws]{buildShearDraws()}} draws the same
+realizations, keeps them with the beam period of each one and returns
+this table beside them.
 }
 
 \examples{

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Query a table of a project
 #'
 #' Reads one table that [processProject()] published under
@@ -6,9 +10,9 @@
 #'
 #' The table is named as in the effects record of [processProject()] and
 #' in [listProjectTables()]: with `siteID = NULL`, one of the global tables
-#' `ShearTable`, `DnPlotTable`, `DnTable` and `kmaxTable` at the root of
+#' `ShearTable`, `ShearDraws`, `DnPlotTable`, `DnTable`, `kmaxTable` and `DnPOETable` at the root of
 #' `path.tables`; with a site identifier, one of the tables `DnDraws`,
-#' `PGATable`, `DnTable` and `kmaxTable` of that site under
+#' `PGATable`, `DnTable`, `kmaxTable` and `DnPOETable` of that site under
 #' `<ID.gmdp>/<siteID>/`, which locates them with the `ID.gmdp` of the
 #' contract. The contract is read and checked, and its paths resolved
 #' against `root`, as [processProject()] does, and the table is read as

@@ -8,7 +8,7 @@ buildKmaxTable(draws, PGATable, shear, modelID, siteID, TR, NS, weights, DaH)
 }
 \arguments{
 \item{draws}{The \code{DnDraws} product of the site: \code{IDg}, \code{IDm}, \code{ID},
-\code{TR}, \code{ky}, \code{s}, \code{PGA.s}, \code{IDn}, \code{Dn}, \code{siteID} and \code{units.Dn}, in this
+\code{TR}, \code{ky}, \code{realization}, \code{PGA.s}, \code{IDn}, \code{Dn}, \code{siteID} and \code{units.Dn}, in this
 order, the realizations of one cell sharing one \code{ky} grid.}
 
 \item{PGATable}{The \code{PGATable} product of the site as read back from its CSV:
@@ -99,8 +99,9 @@ MCE[, `:=`(ID = "MCE", siteID = "TST", Vs30 = 760, Vref = 760)]
 Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), Hs = c(10, 120),
                                 VS30 = c(360, 560), Ts = 0.3, Vref = 760, level = "mean")
 Weights <- c(AM88 = 1, BM19 = 1)
+Draws <- Shear[, .(IDg, IDm, realization = 1L, Ts, VS30, Vref)]
 Site <- buildDnTables(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
-                      Mw = 7, NS = 2, weights = Weights, zTrunc = 3, workers = 1)
+                      Mw = 7, NS = 2, weights = Weights, zTrunc = 3, workers = 1, draws = Draws)
 PGATable <- buildPGATable(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100)
 Kmax <- buildKmaxTable(Site$DnDraws, PGATable = PGATable, shear = Shear, modelID = "TEST",
                        siteID = "TST", TR = 100, NS = 2, weights = Weights, DaH = c(0.05, 0.1))

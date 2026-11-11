@@ -3,7 +3,11 @@
 # its PGA table read back from the CSV and its shear table; buildKmaxTable()
 # reproduces that site table exactly. Another site is the same table under
 # another siteID, which the product checks treat as any site.
-sliceInputs <- function() readRDS(test_path("fixtures", "kmax-M2V4D-S27-U4.Rds"))
+sliceInputs <- function() {
+  Slice <- readRDS(test_path("fixtures", "kmax-M2V4D-S27-U4.Rds"))
+  setnames(Slice$drawTable, old = "s", new = "realization")
+  Slice
+}
 
 # The arguments of the project's newmark.json: Dn_weights with subduction
 # false (BM17 off) and DaH.gmdp.
@@ -71,6 +75,8 @@ test_that("the global table takes neither the number of realizations nor the PGA
 })
 
 test_that("the levels are every percentage of DaH at every height, to six significant digits", {
+  # Exact by contract: the levels are the six-significant-digit rounding of the
+  # product, so the stored decimals are the expected ones, not a rounding of them.
   expect_identical(.deriveKmaxLevels(c(0.5, 1), data.frame(Hs = c(10, 20, 20))), c(5, 10, 20))
   # 0.07 * 100 is 7.0000000000000009 in floating point.
   expect_identical(.deriveKmaxLevels(0.07, data.frame(Hs = 100)), 7)

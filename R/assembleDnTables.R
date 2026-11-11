@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Global displacement products of release 1.7.1
 #'
 #' Compatibility route that reproduces, value for value, the global
@@ -42,8 +46,10 @@
 #' MCE[, `:=`(ID = "MCE", siteID = "TST", Vs30 = 760, Vref = 760)]
 #' Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), VS30 = c(360, 560),
 #'                                 Ts = 0.3, Vref = 760, level = "mean")
+#' Draws <- Shear[, .(IDg, IDm, realization = 1L, Ts, VS30, Vref)]
 #' Site <- buildDnTables(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
-#'                       Mw = 7, NS = 2, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3, workers = 1)
+#'                       Mw = 7, NS = 2, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3,
+#'                       workers = 1, draws = Draws)
 #' Global <- assembleDnTables(list(TST = Site$DnTable), shear = Shear, weights = c(AM88 = 1, BM19 = 1),
 #'                            modelID = "TEST", TR = 100, Vref = 760)
 #' Global$DnPlotTable

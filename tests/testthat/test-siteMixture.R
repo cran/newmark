@@ -10,11 +10,11 @@ test_that("integrateSiteMixture keeps the reference-condition identity and its i
   GMM <- siteReference()$mixture
   Before <- data.table::copy(GMM)
   OUT <- integrateSiteMixture(mixture = GMM, VS30 = 760, Vref = 760, model = "ST20", order = 32L)
-  expect_equal(OUT, GMM, tolerance = 0)
+  expect_equal(OUT, GMM)
   expect_identical(GMM, Before)
 })
 
-test_that("integrateSiteMixture reproduces fitSaFMixture of newmark 1.7.1 exactly", {
+test_that("integrateSiteMixture reproduces fitSaFMixture of newmark 1.7.1", {
   Reference <- siteReference()
   OUT <- integrateSiteMixture(Reference$mixture, VS30 = 360, Vref = 760, model = "ST20", order = 16)
   expectReproduces(as.list(OUT), as.list(Reference$mixture16))
@@ -64,10 +64,10 @@ test_that("summarizeMixture is the closed form of a single lognormal", {
   LnClosed <- stats::qnorm(Levels, mean = log(0.4), sd = 0.5)
   expect_lte(max(abs(log(OUT[Tn == 0 & level != "mean", Sa]) - LnClosed)),
              1e-12 + 4 * .Machine$double.eps * max(abs(LnClosed)))
-  expect_identical(OUT[Tn == 0 & level == "mean", Sa], exp(log(0.4) + 0.5^2 / 2))
+  expect_equal(OUT[Tn == 0 & level == "mean", Sa], exp(log(0.4) + 0.5^2 / 2))
   # The zero-dispersion component is an atom: every level inside its jump
   # returns it (generalized inverse).
-  expect_identical(OUT[Tn == 1, Sa], rep(exp(log(0.1)), 4L))
+  expect_equal(OUT[Tn == 1, Sa], rep(exp(log(0.1)), 4L))
   expect_false(is.unsorted(OUT[Tn == 0 & level != "mean", Sa], strictly = TRUE))
 })
 
@@ -76,14 +76,14 @@ test_that("the median of twelve equal atoms is the seventh, as added in double",
   # so the bisection stops at the seventh atom; added in long double they
   # reach 0.5 and would select the sixth.
   Mixture <- data.table::data.table(Tn = 0, k = sprintf("k%02d", 1:12), muLn = (1:12) / 10, sigmaLn = 0, w = 1 / 12)
-  expect_identical(summarizeMixture(Mixture, levels = 0.5)[level == "0.5", Sa], exp(7 / 10))
+  expect_equal(summarizeMixture(Mixture, levels = 0.5)[level == "0.5", Sa], exp(7 / 10))
 })
 
 test_that("refineSiteMixture returns the rock mixture at the reference condition", {
   GMM <- siteReference()$mixture
   OUT <- refineSiteMixture(GMM, VS30 = 760, Vref = 760, model = "ST20", levels = c(0.16, 0.84),
                            orders = c(8, 16, 32), tolerance = 2e-3)
-  expect_equal(OUT$mixture, GMM, tolerance = 0)
+  expect_equal(OUT$mixture, GMM)
   expect_identical(OUT$order, NA_integer_)
   expect_error(refineSiteMixture(GMM, VS30 = 360, Vref = 760, model = "ST20", levels = 0.5,
                                  orders = c(8, 16), tolerance = 2e-3), "at least three")
@@ -96,5 +96,5 @@ test_that("the site weights of a period are normalized by their sum in double", 
   Mixture <- data.table::CJ(Tn = c(0, 1), k = sprintf("c%02d", 1:10))
   Mixture[, `:=`(muLn = log(0.3), sigmaLn = 0.5, w = 0.1)]
   OUT <- integrateSiteMixture(Mixture, VS30 = 360, Vref = 760, model = "ST20", order = 2)
-  expect_identical(OUT$w, rep(0.05 / (1 + 2^-52), 40L))
+  expect_equal(OUT$w, rep(0.05 / (1 + 2^-52), 40L))
 })

@@ -7,7 +7,7 @@
 processProject(
   file = "newmark.json",
   root,
-  steps = c("ShearTable", "DnTable", "kmaxTable"),
+  steps = c("ShearTable", "DnTable", "kmaxTable", "DnPOETable"),
   sites = character(),
   dryRun = FALSE
 )
@@ -20,11 +20,12 @@ relative.}
 relative paths are resolved; required, with no default. The CLI passes
 the working directory when \code{--root} is absent.}
 
-\item{steps}{Any of \code{"ShearTable"}, \code{"DnTable"} and \code{"kmaxTable"}; they
-run in that order.}
+\item{steps}{Any of \code{"ShearTable"}, \code{"ShearDraws"}, \code{"DnTable"},
+\code{"kmaxTable"} and \code{"DnPOETable"}; they run in that order. The default
+selects every step except \code{"ShearDraws"}.}
 
 \item{sites}{Identifiers of the sites to process; empty selects every
-site found under \code{path.uhs}. Only \code{DnTable} and \code{kmaxTable} process
+site found under \code{path.uhs}. \code{DnTable}, \code{kmaxTable} and \code{DnPOETable} process
 sites, and an unknown site stops them before anything is written. The
 global tables are rebuilt from the tables of every site found,
 selected or not.}
@@ -49,22 +50,27 @@ published table; \code{NA} in a dry run).
 Reads the project contract, plans the selected steps and publishes their
 tables under \code{path.tables}, file by file, returning the record of
 what it published. The steps are named after the table each one
-publishes and always run in the order \code{ShearTable}, \code{DnTable},
-\code{kmaxTable}.
+publishes and always run in the order \code{ShearTable}, \code{ShearDraws},
+\code{DnTable}, \code{kmaxTable}, \code{DnPOETable}; \code{ShearDraws} runs only when
+\code{steps} names it.
 }
 \details{
 Everything the run decides is resolved before its first calculation, and
 a dry run makes the same checks: the contract keys of the selected steps,
-the paths, the sites and the destinations. For \code{ShearTable}, the plan
-also applies to the geometries, the materials, the pairs and \code{Vref.gmdp}
-the rules that \code{\link[=buildShearTable]{buildShearTable()}} applies to its arguments, and to the
-USCS codes of every selected material the rule of \code{\link[=sampleSoilLayers]{sampleSoilLayers()}}.
+the paths, the sites and the destinations. For \code{ShearTable} and
+\code{ShearDraws}, the plan also applies to the geometries, the materials, the
+pairs and \code{Vref.gmdp} the rules that \code{\link[=buildShearTable]{buildShearTable()}} applies to its
+arguments, and to the USCS codes of every selected material the rule of
+\code{\link[=sampleSoilLayers]{sampleSoilLayers()}}. For \code{ShearDraws}, it also requires \code{seed} and, unless
+\code{ShearTable} runs before it, the published \code{ShearTable.Rds}.
 For \code{DnTable} and \code{kmaxTable}, the inputs that no selected step produces
 must exist, and what the shear table and the MCE table hold is checked
-before those steps calculate anything: for \code{DnTable}, the mean rows of
-the shear table and the MCE demand of every selected site over the
-period \code{1.5 * max(Ts)} of those rows, as \code{\link[=buildDnTables]{buildDnTables()}} requires them;
-for \code{kmaxTable}, the heights \code{Hs} from which \code{\link[=buildKmaxTable]{buildKmaxTable()}} derives
+before those steps calculate anything: for \code{DnTable}, the reference rows
+of the shear table, the paired realizations in \code{ShearDraws.Rds} and the
+MCE demand over \code{1.5 * max(Ts)} of the columns used, as \code{\link[=buildDnTables]{buildDnTables()}}
+requires them. A dry run cannot check columns that a selected
+\code{ShearDraws} step has yet to produce; it checks the reference rows then.
+For \code{kmaxTable}, it checks the heights \code{Hs} from which \code{\link[=buildKmaxTable]{buildKmaxTable()}} derives
 its displacements. A dry run makes the checks of \code{DnTable} first and a
 run the check of the heights first, as each phase of \code{newmark} 1.7.1 does,
 so that when both fail the two report different failures. With
@@ -94,25 +100,25 @@ absent.}
 \item{\code{path.data}}{Directory of the hazard table \code{MCETable.Rds}, read
 only. \code{DnTable}.}
 \item{\code{path.uhs}}{Directory holding \verb{<ID.gmdp>/<siteID>/UHSRock.Rds},
-read only; the sites are its directories that hold one. \code{DnTable}
-and \code{kmaxTable}.}
+read only; the sites are its directories that hold one. \code{DnTable},
+\code{kmaxTable} and \code{DnPOETable}.}
 \item{\code{path.calc}}{JSON of the classical hazard calculation, whose
 finite positive \code{job.calculation.truncation_level} truncates the
 sampling of the rock demand. \code{DnTable}.}
 \item{\code{Vref.gmdp}}{Reference rock velocity in m/s, one number. Every
-step; \code{DnTable} and \code{kmaxTable} require 760.}
+step; the site steps require 760.}
 \item{\code{ID.gmdp}, \code{TR.gmdp}, \code{NS}, \code{subduction}, \code{Dn_weights}}{Identifier
 of the hazard model (a letter followed by letters, digits, \verb{_} or
 \code{-}), return periods in years (sorted, duplicates dropped),
 realizations per cell (a positive whole number), the regime (\code{true}
 for subduction) and the 0/1 switches of the displacement models, which
 \code{\link[=selectDisplacementModels]{selectDisplacementModels()}} turns into the weights of the active
-models. \code{DnTable} and \code{kmaxTable}.}
+models. \code{DnTable}, \code{kmaxTable} and \code{DnPOETable}.}
 \item{\code{Mw.gmdp}}{Moment magnitude of the scenarios: one number for every
 demand, or an object that names each return period of \code{TR.gmdp} and
 \code{MCE} with its magnitude. \code{DnTable}.}
 \item{\code{DaH.gmdp}}{Admissible displacements, distinct positive
-percentages of the height \code{Hs}. \code{kmaxTable}.}
+percentages of the height \code{Hs}. \code{kmaxTable} and \code{DnPOETable}.}
 \item{\code{DN_PARALLEL}, \code{DN_WORKERS}}{Optional parallel controls of
 \code{DnTable}: \code{true} (the default) or \code{false}, and a positive whole
 number of workers, by default the cores that R detects minus one, at
@@ -123,13 +129,13 @@ never uses more of them than the mean rows of the shear table, and
 them.}
 \item{\code{uscs}, \code{IDm}}{Object of USCS code arrays indexed by material, and
 the distinct selected materials, each one a key of \code{uscs}.
-\code{ShearTable}.}
+\code{ShearTable} and \code{ShearDraws}.}
 \item{\code{Hs}, \code{lo.min}, \code{lo.max}, \code{s.min}, \code{s.max}}{Range form of the
 geometries: the heights in metres, and the first and last truncation
 ratio and slope, spread evenly over the heights in their declared
 order (they are not a minimum and a maximum) and passed to
-\code{\link[=buildGeometry]{buildGeometry()}}. \code{ShearTable}, unless \code{geometryTable} is declared;
-the heights have no default.}
+\code{\link[=buildGeometry]{buildGeometry()}}. \code{ShearTable} and \code{ShearDraws}, unless
+\code{geometryTable} is declared; the heights have no default.}
 \item{\code{geometryTable}}{Optional array of \code{IDg}, \code{Hs}, \code{b} and \code{s} row
 objects, used instead of the range form.}
 \item{\code{pairs}}{Optional array of \code{IDg} and \code{IDm} row objects restricting
@@ -138,7 +144,11 @@ the product of geometries by materials.}
 the \code{ShearTable} step. A contract without it, such as one written for
 \code{newmark} 1.7.1, runs that step on the caller's random stream, as 1.7.1
 does without a seed, and the contract alone does not make its table
-reproducible.}
+reproducible. \code{ShearDraws} requires it.}
+\item{\code{NS.shear}}{Optional realizations per pair of \code{ShearDraws}, a
+whole number of at least 100; without it, 100. Realizations beyond
+100 extend the population of the shear table without changing it.
+\code{ShearDraws}, the only step that reads it.}
 }
 }
 
@@ -150,8 +160,25 @@ the contract defines it, which replaces the caller's random stream, calls
 0.90, 0.95 and 0.98, and publishes \verb{<path.tables>/ShearTable.Rds} with
 \code{\link[=saveRDS]{saveRDS()}}. Its message reports the seed, or \verb{seed none} without one.
 
+\code{ShearDraws} reads \code{ShearTable.Rds} under \code{path.tables} (the one the
+\code{ShearTable} step has just published, when both run), calls \code{\link[=set.seed]{set.seed()}}
+with \code{seed} and \code{\link[=buildShearDraws]{buildShearDraws()}} with the inputs and levels of
+\code{ShearTable} and \code{NS.shear} realizations per pair, and compares the shear
+table it returns with the one it read, value for value: the same column
+names in the same order and, in each column, the same values of the same
+type (\code{\link[=identical]{identical()}}), whatever the keys and indices of the two tables.
+When they differ it stops naming the columns that differ and publishes
+nothing; otherwise it publishes the
+realizations as \verb{<path.tables>/ShearDraws.Rds} with \code{\link[=saveRDS]{saveRDS()}}.
+Realizations whose fitted \code{mo} is negative are published with \code{mo} forced
+to 0 and with the \code{an} and \code{Ts} of that homogeneous beam, as
+\code{\link[=buildShearDraws]{buildShearDraws()}} returns them, and the message of the step reports the
+seed, \code{NS.shear} and how many realizations were forced. \code{ShearTable.Rds}
+is never written by this step.
+
 \code{DnTable} reads \code{ShearTable.Rds} under \code{path.tables} (the one the
-\code{ShearTable} step has just published, when both run), \code{MCETable.Rds} and
+\code{ShearTable} step has just published, when both run), \code{ShearDraws.Rds},
+\code{MCETable.Rds} and
 the \code{UHSRock.Rds} of each selected site, which it processes in
 alphabetical order. For a site it calls \code{\link[=buildDnTables]{buildDnTables()}} with \code{ID.gmdp},
 \code{TR.gmdp}, \code{Vref.gmdp}, \code{Mw.gmdp}, \code{NS}, the weights that
@@ -167,7 +194,9 @@ them, in that order, at the root of \code{path.tables}; a site found
 without that file stays out of them. \code{\link[=buildDnTables]{buildDnTables()}} seeds each site
 and demand with its own fixed seed, so the step replaces the caller's
 random stream and the tables of a site do not depend on the sites run
-with it.
+with it. Its unchanged \code{NS} movements per pair cycle through the
+ShearDraws columns in realization order. The same column supplies Ts
+and VS30; the common ky grid and PGATable use the mean-row reference.
 
 \code{kmaxTable} reads \code{ShearTable.Rds} under \code{path.tables} and, for each
 selected site in alphabetical order, its \code{DnDraws.Rds} and its
@@ -185,15 +214,18 @@ stored grid reach the caller, and the step draws no random number.
 
 The inputs of the site steps that no selected step produces must exist
 when they are planned: \code{ShearTable.Rds} under \code{path.tables},
-\code{MCETable.Rds} for \code{DnTable}, and the \code{DnDraws.Rds} and \code{PGATable.csv}
-of each selected site for \code{kmaxTable} without \code{DnTable}.
+\code{ShearDraws.Rds} and \code{MCETable.Rds} for \code{DnTable}, and the \code{DnDraws.Rds} and \code{PGATable.csv}
+of each selected site for \code{kmaxTable} without \code{DnTable}. \code{DnPOETable}
+requires the same shear table and site draws, without \code{PGATable.csv}.
 }
 
 \section{Publication}{
 
-The tables are published in groups: the shear table; the three files
+The tables are published in groups: the shear table; the shear
+realizations; the three files
 of a site and the two global files of \code{DnTable}; the site and the global
-\code{kmaxTable}. Every file of a group is first written to a temporary file
+\code{kmaxTable}; the site and global \code{DnPOETable}. Every file of a group is
+first written to a temporary file
 \verb{.<name>.<suffix>} beside its destination, in the format its name
 declares, and then each destination is replaced by renaming its
 temporary file, in the order of the group. Each rename is atomic; the
@@ -225,6 +257,19 @@ and \code{path} the destination whose temporary file or rename failed (\code{NUL
 when the failure was not a publication). A rename that fails returns
 \code{FALSE}, with at most a warning, so it is reported as an error naming
 its destination and the reason.
+}
+
+\section{Displacement exceedance product}{
+
+\code{DnPOETable} reads the accepted shear table and each selected site's
+\code{DnDraws.Rds}, counts pointwise exceedances with \code{\link[=buildDnPOETable]{buildDnPOETable()}} and
+publishes the site \code{DnPOETable.Rds}. It assembles the global file from
+available site tables with \code{\link[=assembleDnPOETables]{assembleDnPOETables()}}. It uses \code{ID.gmdp},
+\code{TR.gmdp}, \code{NS}, \code{Dn_weights}, \code{subduction} and \code{DaH.gmdp}; site discovery
+uses \code{path.uhs}, as for the other site steps. It needs neither PGATable
+nor the kmaxTable step, consumes no random numbers and uses the same
+publication and partial-failure rules. The fractions are conditional on
+each demand and the population of the stored draws, not integrated hazard.
 }
 
 \examples{

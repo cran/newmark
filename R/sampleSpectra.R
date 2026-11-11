@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Correlated sample of spectral accelerations
 #'
 #' Draws `NS` joint realizations of the spectral accelerations at the
@@ -88,6 +92,14 @@ sampleSpectra <- function(spectrum, Tn, correlation, NS, zTrunc) {
 # The draws of sampleSpectra() as a matrix: one row per realization, one
 # column per requested period.
 .drawSpectra <- function(spectrum, Tn, correlation, NS, zTrunc) {
+  Draw <- .sampleSpectra(spectrum, Tn = Tn, correlation = correlation, NS = NS,
+                         zTrunc = zTrunc, generator = stats::rnorm)
+  .centerSpectra(Draw$sample, mean = Draw$mean)
+}
+
+# Uncentered spectral draws and their target means. The cell sampler supplies
+# its preassigned normal innovations through mvtnorm's generator interface.
+.sampleSpectra <- function(spectrum, Tn, correlation, NS, zTrunc, generator) {
   if (!is.data.frame(spectrum)) stop("spectrum must be a table")
   if (!is.numeric(Tn) || !length(Tn) || any(!is.finite(Tn) | Tn < 0) ||
       !is.numeric(NS) || length(NS) != 1L || !is.finite(NS) || NS != as.integer(NS) || NS < 1L) {
@@ -125,19 +137,21 @@ sampleSpectra <- function(spectrum, Tn, correlation, NS, zTrunc) {
   if (min(Eigenvalues) <= 0) {
     C <- C + diag(abs(min(Eigenvalues)) + 1e-8, nrow(C))
   }
-  U <- stats::pnorm(mvtnorm::rmvnorm(n = NS, sigma = C))
+  U <- stats::pnorm(mvtnorm::rmvnorm(n = NS, sigma = C, rnorm = generator))
   if (!is.na(zTrunc)) {
     U <- stats::pnorm(-zTrunc) + U * (stats::pnorm(zTrunc) - stats::pnorm(-zTrunc))
   }
   OUT <- matrix(NA_real_, NS, length(Tn))
+  Means <- numeric(length(Tn))
   if (!IsAnalytic) {
     for (j in seq_along(Tn)) {
       Quantiles <- exp(Marginals[[j]]$quantile(U[, j]))
       Mean <- Marginals[[j]]$mean
       if (!is.finite(Mean)) Mean <- .portableMean(Quantiles)
-      OUT[, j] <- Quantiles * (Mean / .portableMean(Quantiles))
+      OUT[, j] <- Quantiles
+      Means[[j]] <- Mean
     }
-    return(OUT)
+    return(list(sample = OUT, mean = Means))
   }
   Periods <- sort(unique(Mixture$Tn))
   evaluate <- function(index, u) {
@@ -164,9 +178,18 @@ sampleSpectra <- function(spectrum, Tn, correlation, NS, zTrunc) {
       Mean <- exp(log(Lower$mean) + Bracket$fraction * (log(Upper$mean) - log(Lower$mean)))
     }
     Quantiles <- exp(QuantileLn)
-    OUT[, j] <- Quantiles * (Mean / .portableMean(Quantiles))
+    OUT[, j] <- Quantiles
+    Means[[j]] <- Mean
   }
-  OUT
+  list(sample = OUT, mean = Means)
+}
+
+# One factor per measure over the entire supplied sample.
+.centerSpectra <- function(sample, mean) {
+  for (j in seq_len(ncol(sample))) {
+    sample[, j] <- sample[, j] * (mean[[j]] / .portableMean(sample[, j]))
+  }
+  sample
 }
 
 # R's arithmetic mean with every accumulation performed in double.

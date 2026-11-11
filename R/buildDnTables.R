@@ -1,23 +1,37 @@
-#' Site displacement products of release 1.7.1
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
+#' Site displacement tables with soil-column uncertainty
 #'
-#' Compatibility route that reproduces, value for value, the displacement
-#' products that the dn step of `newmark` 1.7.1 writes for one site
-#' (`DnDraws` and `DnTable`), so that the installed library can serve as
-#' comparison oracle while the calculations migrate. The third product of
-#' that step, `PGATable`, belongs to the site-response family and is rebuilt
-#' by [buildPGATable()] from the same inputs. For every return period
+#' Builds `DnDraws` and `DnTable` from the paired Ts and VS30 values of
+#' `ShearDraws`. `PGATable` is built separately by [buildPGATable()] on the
+#' mean rows of `ShearTable`. For every return period
 #' of the probabilistic demand and for the MCE, and for every geometry and
-#' material pair of the shear table, it amplifies the rock demand to the
-#' VS30 of the pair, samples the scenario intensities with
+#' material pair, it amplifies the rock demand to the VS30 of each column
+#' rounded to the nearest 1 m/s for spectrum lookup,
+#' samples its scenario intensities at that column's Ts with
 #' [sampleIntensities()], evaluates the active models with
 #' [evaluateDisplacements()] and summarizes them with
 #' [summarizeDisplacements()] and, for the families `ensemble`, `rigid` and
 #' `flexible`, the weighted summary of [summarizeEnsemble()] with the
 #' quantile of `newmark` 1.7.1 (see below).
 #'
-#' @section Semantics reproduced from `newmark` 1.7.1:
-#' Only the `mean` rows of the shear table enter, ordered by `IDg` and
-#' `IDm`; their `Ts` supplies the fundamental period used by the sliding-mass models, and their `VS30` supplies the site velocity.
+#' @section Population and summaries:
+#' Pairs are ordered by `IDg` and `IDm`. Within each pair, the `NS`
+#' movements cycle through the columns in increasing `realization` order;
+#' 200 movements and 100 columns give two movements per column. Each
+#' movement uses the same column for site response, intensity sampling and
+#' displacement evaluation, and keeps its identity over models and ky.
+#' Each measure (PGA, Sa13 and Sa15) is centered once over the complete
+#' `NS` sample on the column means weighted by their assigned movements.
+#' The column subsets are not centered separately. Innovations are drawn in
+#' movement order, so identical columns reproduce a single-column sample.
+#' The `mean` rows of `ShearTable` supply the reference `Ts` and `Vs30`
+#' metadata in `DnTable` and the PGA from which its common ky grid is built.
+#' Site response for a mean row uses that row's stored VS30. Column spectrum
+#' lookup uses `round(VS30)`, with a 1 m/s step; `ShearDraws` and the table
+#' reference metadata retain their stored values.
 #' The probabilistic demands sample the analytic mixture of the amplified
 #' spectrum, truncated at `zTrunc` like the hazard calculation; the MCE
 #' samples its amplified quantile spectrum untruncated. The yield grid is
@@ -37,7 +51,7 @@
 #' acceleration holds a tie, every pooled value is read back from its
 #' 15-significant-digit text before the quantile, while the mean uses the
 #' exact values; [summarizeEnsemble()], the general summary, merges ties at
-#' full precision. Nothing else is rounded.
+#' full precision.
 #'
 #' @param rock The `UHSRock` table of the site: one lognormal distribution at each oscillator period
 #'   per return period at Vs30 = Vref = 760 m/s (`ID`, `siteID`, `TR`, `Tn`,
@@ -45,7 +59,8 @@
 #'   `fitErr`).
 #' @param MCE The `MCETable`: rock quantiles and mean of the MCE (`ID`,
 #'   `siteID`, `Tn`, `p`, `Sa`, `Vs30`, `Vref`), without `TR`.
-#' @param shear The `ShearTable`, of which the `mean` rows are used.
+#' @param shear The `ShearTable`, whose `mean` rows define the cell
+#'   reference properties and common ky grid.
 #' @param modelID Identifier of the probabilistic demand model.
 #' @param siteID Identifier of the site.
 #' @param TR Return periods of the probabilistic demand, in years.
@@ -61,9 +76,17 @@
 #' @param workers Number of forked processes that evaluate the pairs of a
 #'   demand after their draws; 1 evaluates them in this process. The
 #'   products do not depend on it.
+#' @param draws The `ShearDraws` table with `IDg`, `IDm`, `realization`,
+#'   `Ts`, `VS30` and `Vref`. Each pair of `shear` must be represented,
+#'   with realization identifiers from 1 without gaps or duplicates.
+#'   Its columns are sampled in order and reused cyclically until all `NS`
+#'   movements are assigned; `NS` remains the total per pair and demand.
 #' @return A list with the keyed data.tables `DnDraws` (one row per demand,
-#'   pair, model, realization and yield acceleration, with the sampled PGA
-#'   `PGA.s`) and `DnTable` (quantiles and mean of every model and family).
+#'   pair, model, realization and yield acceleration, with the integer draw
+#'   identifier `realization` and the sampled PGA `PGA.s`) and `DnTable`
+#'   (quantiles and mean of every model and family). Stored draws whose
+#'   identifier is named `s` require that column to be renamed to
+#'   `realization` before passing them to the draw consumers.
 #'   The rows of the flexible models (`BT07`, `BM17`, `BM19`) are conditional
 #'   on a nonzero displacement, as [evaluateFlexibleDisplacement()]
 #'   documents; the probability of zero displacement is not represented.
@@ -83,11 +106,13 @@
 #' MCE[, `:=`(ID = "MCE", siteID = "TST", Vs30 = 760, Vref = 760)]
 #' Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), VS30 = c(360, 560),
 #'                                 Ts = 0.3, Vref = 760, level = "mean")
+#' Draws <- Shear[, .(IDg, IDm, realization = 1L, Ts, VS30, Vref)]
 #' Site <- buildDnTables(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
-#'                       Mw = 7, NS = 2, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3, workers = 1)
+#'                       Mw = 7, NS = 2, weights = c(AM88 = 1, BM19 = 1), zTrunc = 3,
+#'                       workers = 1, draws = Draws)
 #' Site$DnTable[IDn == "ensemble" & p == "0.50" & ky < 0.02]
 #' }
-buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, weights, zTrunc, workers) {
+buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, weights, zTrunc, workers, draws) {
   .checkDnArguments(modelID = modelID, siteID = siteID, TR = TR, Vref = Vref, NS = NS, weights = weights)
   if (!.isMagnitude(Mw, TR)) stop("Mw must be one finite positive number or one per demand (each return period of TR and MCE)")
   if (!is.numeric(zTrunc) || length(zTrunc) != 1L || !is.finite(zTrunc) || zTrunc <= 0) {
@@ -99,12 +124,13 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
   }
   Family <- sort(unique(as.numeric(TR)))
   Shear <- .checkDnShear(shear, Vref)
-  Rock <- .checkDnRock(rock, modelID, siteID, Vref, Family, 1.5 * max(Shear$Ts))
-  Mce <- .checkDnMCE(MCE, siteID, Vref, 1.5 * max(Shear$Ts))
+  Profiles <- .checkDnProfiles(draws, shear = Shear, Vref = Vref)[realization <= NS]
+  Rock <- .checkDnRock(rock, modelID, siteID, Vref, Family, 1.5 * max(Profiles$Ts))
+  Mce <- .checkDnMCE(MCE, siteID, Vref, 1.5 * max(Profiles$Ts))
   LIST <- lapply(c(Family, NA_real_), function(tr) {
     Demand <- if (is.na(tr)) "MCE" else modelID
     Records <- .amplifyDemand(if (is.na(tr)) Mce else Rock[TR == tr, .(Tn, k, muLn, sigmaLn, w)],
-                              shear = Shear, Vref = Vref, zTrunc = if (is.na(tr)) NA_real_ else zTrunc,
+                              shear = Shear, draws = Profiles, Vref = Vref, zTrunc = if (is.na(tr)) NA_real_ else zTrunc,
                               demandID = Demand, TR = tr)
     .simulateDnDemand(Records, demandID = Demand, TR = tr, siteID = siteID, Mw = .selectMagnitude(Mw, tr), NS = as.integer(NS),
                       weights = weights, seed = .seedDemand(siteID, Demand, tr), workers = as.integer(workers))
@@ -116,14 +142,11 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
   OUT
 }
 
-# The amplified records of one demand, one per shear pair in order: the site
-# spectrum at the pair's VS30 (the converged site mixture of a probabilistic
-# demand, the converged site quantile spectrum of the MCE, with the numerical
-# controls of the 1.7.1 product) and the yield grid on its mean PGA. The site
-# response depends on the velocity only, so it is computed once per VS30.
-.amplifyDemand <- function(rockSpectrum, shear, Vref, zTrunc, demandID, TR) {
+# The column spectra and common mean-profile ky grid of each pair. Site
+# response depends on velocity only and is computed once per distinct VS30.
+.amplifyDemand <- function(rockSpectrum, shear, draws, Vref, zTrunc, demandID, TR) {
   IsAnalytic <- !is.na(TR)
-  Velocities <- unique(shear$VS30)
+  Velocities <- unique(c(shear$VS30, round(draws$VS30)))
   Spectra <- lapply(Velocities, function(v) {
     if (IsAnalytic) {
       return(refineSiteMixture(rockSpectrum, VS30 = v, Vref = Vref, model = "ST20", levels = DNLEVELS,
@@ -141,8 +164,11 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
     if (length(PGA) != 1L) stop("site response has no single mean PGA for ", Cell)
     Ky <- buildKyGrid(PGA = PGA, n = 30L)
     if (anyDuplicated(Ky)) stop("the yield grid has repeated values for ", Cell)
+    Profiles <- draws[.(shear$IDg[[i]], shear$IDm[[i]]), on = .(IDg, IDm)]
+    Profiles[, spectrum := Spectra[match(round(VS30), Velocities)]]
+    for (Spectrum in Profiles$spectrum) .checkAmplified(Spectrum, IsAnalytic, Cell)
     data.table(IDg = shear$IDg[[i]], IDm = shear$IDm[[i]], Vs30 = shear$VS30[[i]], Ts = shear$Ts[[i]],
-               zTrunc = zTrunc, spectrum = list(Spectrum), ky = list(Ky))
+               zTrunc = zTrunc, ky = list(Ky), profiles = list(Profiles))
   })
   rbindlist(LIST)
 }
@@ -175,10 +201,8 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
   as.integer(Seed)
 }
 
-# Draws and summaries of one demand from its amplified records (one row per
-# pair with IDg, IDm, Vs30, Ts, zTrunc and the list columns spectrum and
-# ky). Every pair draws in order after one reseed; the evaluation, which
-# consumes no random numbers, may then run in forked workers.
+# Movements cycle through each pair's column records. All random draws
+# precede evaluation, which may run in forked workers without changing them.
 .simulateDnDemand <- function(records, demandID, TR, siteID, Mw, NS, weights, seed, workers) {
   # Local names, so that no column of the records can shadow them in j.
   Demand <- demandID
@@ -186,16 +210,21 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
   Site <- siteID
   set.seed(seed)
   Draws <- lapply(seq_len(nrow(records)), function(i) {
-    Intensities <- sampleIntensities(records$spectrum[[i]], Ts = records$Ts[[i]], NS = NS,
-                                     zTrunc = records$zTrunc[[i]])
+    Intensities <- .sampleDnIntensities(records$profiles[[i]], NS = NS, zTrunc = records$zTrunc[[i]])
     list(intensities = Intensities, eps = stats::rnorm(NS))
   })
   evaluate <- function(i) {
     Draw <- Draws[[i]]
-    Realizations <- evaluateDisplacements(Draw$intensities, eps = Draw$eps, ky = records$ky[[i]],
-                                          Ts = records$Ts[[i]], Mw = Mw, models = names(weights),
-                                          NFC = "D100", pulse = FALSE)
-    Levels <- c(.dnLevels(records$spectrum[[i]]), "mean")
+    Profiles <- records$profiles[[i]]
+    Realizations <- rbindlist(lapply(seq_len(nrow(Profiles)), function(j) {
+      Intensities <- Draw$intensities[seq.int(j, NS, by = nrow(Profiles))]
+      DT <- evaluateDisplacements(Intensities, eps = Draw$eps[Intensities$realization], ky = records$ky[[i]],
+                                   Ts = Profiles$Ts[[j]], Mw = Mw, models = names(weights),
+                                   NFC = "D100", pulse = FALSE)
+      DT[, PGA.s := Intensities$PGA[match(realization, Intensities$realization)]]
+      DT
+    }))
+    Levels <- c(.dnLevels(Profiles$spectrum[[1L]]), "mean")
     Families <- lapply(names(DNFAMILIES), function(family) {
       Members <- .familyWeights(weights, family)
       if (!length(Members)) return(NULL)
@@ -204,7 +233,7 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
     })
     Curve <- rbindlist(c(list(summarizeDisplacements(Realizations, levels = Levels)), Families), use.names = TRUE)
     Curve[, `:=`(IDg = records$IDg[[i]], IDm = records$IDm[[i]], Ts = records$Ts[[i]], Vs30 = records$Vs30[[i]])]
-    Realizations[, `:=`(PGA.s = Draw$intensities$PGA[realization], s = realization, IDg = records$IDg[[i]], IDm = records$IDm[[i]])]
+    Realizations[, `:=`(IDg = records$IDg[[i]], IDm = records$IDm[[i]])]
     list(curve = Curve, draws = Realizations)
   }
   OUT <- if (workers > 1L && nrow(records) > 1L && !identical(.Platform$OS.type, "windows")) {
@@ -226,6 +255,21 @@ buildDnTables <- function(rock, MCE, shear, modelID, siteID, TR, Vref, Mw, NS, w
   Realizations <- rbindlist(lapply(OUT, `[[`, "draws"))
   Realizations[, `:=`(ID = Demand, TR = Period, siteID = Site, units.Dn = "cm")]
   list(DnTable = Curve[, DNCOLS, with = FALSE], DnDraws = Realizations[, DRAWCOLS, with = FALSE])
+}
+
+# Complete-cell sampling: the random stream is independent of column grouping,
+# and the target mean weights each column by its assigned movements.
+.sampleDnIntensities <- function(profiles, NS, zTrunc) {
+  Innovations <- matrix(stats::rnorm(3L * NS), ncol = 3L, byrow = TRUE)
+  Sample <- Means <- matrix(NA_real_, nrow = NS, ncol = 3L)
+  for (j in seq_len(nrow(profiles))) {
+    IDX <- seq.int(j, NS, by = nrow(profiles))
+    Draw <- .sampleIntensities(profiles$spectrum[[j]], Ts = profiles$Ts[[j]], NS = length(IDX),
+                               zTrunc = zTrunc, generator = function(n) as.vector(t(Innovations[IDX, , drop = FALSE])))
+    Sample[IDX, ] <- Draw$sample
+    Means[IDX, ] <- rep(Draw$mean, each = length(IDX))
+  }
+  .intensityTable(.centerSpectra(Sample, mean = apply(Means, 2L, .portableMean)))
 }
 
 # The active models of one family of DNFAMILIES with their weights, in the
@@ -272,8 +316,8 @@ DNFAMILIES <- list(ensemble = c("AM88", "JB07", "SR08", "BT07", "BM17", "BM19"),
                    flexible = c("BT07", "BM17", "BM19"))
 DNCOLS <- c("IDg", "IDm", "p", "ID", "TR", "ky", "Dn", "Ts", "Vs30", "IDn", "siteID", "units.Dn")
 DNKEY <- c("siteID", "ID", "TR", "IDg", "IDm", "IDn", "p", "ky")
-DRAWCOLS <- c("IDg", "IDm", "ID", "TR", "ky", "s", "PGA.s", "IDn", "Dn", "siteID", "units.Dn")
-DRAWKEY <- c("siteID", "ID", "TR", "IDg", "IDm", "IDn", "s", "ky")
+DRAWCOLS <- c("IDg", "IDm", "ID", "TR", "ky", "realization", "PGA.s", "IDn", "Dn", "siteID", "units.Dn")
+DRAWKEY <- c("siteID", "ID", "TR", "IDg", "IDm", "IDn", "realization", "ky")
 DNTOL <- 1e-10
 
 .isIdentifier <- function(x) {
@@ -319,6 +363,31 @@ DNTOL <- 1e-10
   Shear[, Vref := NULL]
   setorder(Shear, IDg, IDm)
   Shear
+}
+
+# Paired column properties in their stored realization order. The movement
+# identity cycles over this order without adding a second identity to DnDraws.
+.checkDnProfiles <- function(draws, shear, Vref) {
+  Required <- c("IDg", "IDm", "realization", "Ts", "VS30", "Vref")
+  if (!is.data.frame(draws) || !nrow(draws) || !all(Required %in% names(draws))) {
+    stop("ShearDraws must contain IDg, IDm, realization, Ts, VS30 and Vref")
+  }
+  DT <- as.data.table(draws)[, Required, with = FALSE]
+  if (!is.character(DT$IDg) || !is.character(DT$IDm) || anyNA(DT) ||
+      !all(vapply(DT[, .(realization, Ts, VS30, Vref)], is.numeric, logical(1L))) ||
+      any(!is.finite(DT$Ts) | DT$Ts <= 0) || any(!is.finite(DT$VS30) | DT$VS30 <= 0) ||
+      any(!is.finite(DT$realization) | DT$realization < 1 | DT$realization != trunc(DT$realization)) ||
+      any(DT$Vref != Vref)) {
+    stop("ShearDraws requires paired positive Ts/VS30, positive integer realizations and the reference Vref")
+  }
+  if (!fsetequal(unique(DT[, .(IDg, IDm)]), shear[, .(IDg, IDm)])) {
+    stop("ShearDraws must cover exactly the geometry-material pairs of ShearTable")
+  }
+  setorder(DT, IDg, IDm, realization)
+  if (any(DT[, .(complete = identical(as.numeric(realization), as.numeric(seq_len(.N)))), by = .(IDg, IDm)]$complete == FALSE)) {
+    stop("ShearDraws realizations must run from 1 without duplicates or gaps within each pair")
+  }
+  DT
 }
 
 # The analytic rock mixtures of one site and model at Vs30 = Vref, checked
@@ -468,14 +537,14 @@ DNTOL <- 1e-10
       any(!is.finite(DT$Dn)) || any(DT$Dn < 0) || any(DT$units.Dn != "cm")) {
     stop("DnDraws has invalid numerical values or units")
   }
-  if (any(DT[, .(nPGA = uniqueN(PGA.s)), by = .(ID, TR, IDg, IDm, s)]$nPGA != 1L)) {
+  if (any(DT[, .(nPGA = uniqueN(PGA.s)), by = .(ID, TR, IDg, IDm, realization)]$nPGA != 1L)) {
     stop("DnDraws PGA.s must be constant within each sampled demand")
   }
   Expected <- (length(TR) + 1L) * nrow(shear) * length(weights) * NS * 30L
   if (nrow(DT) != Expected) {
     stop("DnDraws row count mismatch for siteID=", siteID, ": expected ", Expected, ", found ", nrow(DT))
   }
-  Groups <- DT[, .(n = .N, ns = uniqueN(s), nky = uniqueN(ky)), by = .(ID, TR, IDg, IDm, IDn)]
+  Groups <- DT[, .(n = .N, ns = uniqueN(realization), nky = uniqueN(ky)), by = .(ID, TR, IDg, IDm, IDn)]
   if (any(Groups$n != NS * 30L) || any(Groups$ns != NS) || any(Groups$nky != 30L)) {
     stop("DnDraws does not have NS x 30 values per simulation family")
   }

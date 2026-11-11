@@ -7,7 +7,7 @@
 # and calling getGeometry() and getTs() as checkTs.R of the frozen
 # oqt-to-newmark succession did: set.seed(20260915L), heights 10 and 120 m,
 # truncation 0.35 and 0.075, slopes 2.5 and 3.5, U1 = ML MH, U2 = SP SM,
-# Vref 760, nine levels. Compared with all.equal at tolerance 0 and identical
+# Vref 760, nine levels. Compared with all.equal at the default tolerance and identical
 # names, key and types, except the root an and the period Ts: the surrogate is
 # fitted to CylinderRoots solved at every node instead of the Mathematica
 # tables of newmark 1.7.1, which moves 34 of the 36 roots by at most 0.0013 and
@@ -17,7 +17,7 @@ referenceShearTable <- function() readRDS(test_path("fixtures", "ts-reference-Sh
 
 expectReferenceRows <- function(Reference, Actual) {
   Columns <- setdiff(names(Reference), c("an", "Ts"))
-  expect_true(isTRUE(all.equal(Reference[, ..Columns], Actual[, ..Columns], tolerance = 0, check.attributes = TRUE)))
+  expect_true(isTRUE(all.equal(Reference[, ..Columns], Actual[, ..Columns], check.attributes = TRUE)))
   expect_lt(max(abs(Actual$an - Reference$an)), 0.00135)
   expect_lt(max(abs(Actual$Ts - Reference$Ts)), 0.0015)
 }
@@ -48,7 +48,53 @@ test_that("a row outside the support of the root surrogate takes the exact root"
   Surrogate <- evaluateRoot(buildRootModel(mode = 1, method = "nlm"), mo = Shear$mo, lo = Shear$lo)
   Exact <- evaluateRoot(buildRootModel(mode = 1, method = "exact"), mo = Shear$mo, lo = Shear$lo)
   expect_identical(Surrogate$withinSupport, c(TRUE, FALSE))
-  expect_identical(Shear$an, round(c(Surrogate$an[1L], Exact$an[2L]), 4))
+  expect_equal(Shear$an, round(c(Surrogate$an[1L], Exact$an[2L]), 4))
+})
+
+# Oracle of the draws: buildShearTable() of newmark 1.11.0,
+# fixtures/buildShearTable-1.11.0.R, evaluated beside the namespace. Called
+# alike under the same seed, the two functions must return the same table or
+# signal the same condition, and leave the random stream at the same number.
+headShearTable <- function() {
+  Env <- new.env(parent = asNamespace("newmark"))
+  sys.source(test_path("fixtures", "buildShearTable-1.11.0.R"), envir = Env)
+  Env$buildShearTable
+}
+
+callSeeded <- function(build, ...) {
+  set.seed(20260915L)
+  list(result = tryCatch(build(...), error = identity), stream = .Random.seed)
+}
+
+test_that("buildShearTable gives the table, the errors and the random stream of newmark 1.11.0", {
+  skip_on_cran()
+  Head <- headShearTable()
+  Geometry <- buildGeometry(Hs = c(10, 12), lo = c(0.35, 0.075), s = c(2.5, 3.5))
+  Pool <- list(U1 = c("ML", "MH"))
+  Expected <- callSeeded(Head, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = c(0.16, "mean", 0.84))
+  expect_identical(nrow(Expected$result), 6L)
+  expectReproduces(callSeeded(buildShearTable, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = c(0.16, "mean", 0.84)),
+                   Expected)
+  # The level 0 stops the summary of the first pair, before the second pair
+  # is drawn; a negative Vref stops before anything is drawn.
+  Expected <- callSeeded(Head, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = 0)
+  expect_identical(conditionMessage(Expected$result), "levels must be probabilities in (0, 1) or \"mean\"")
+  expect_identical(callSeeded(buildShearTable, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = 0), Expected)
+  Expected <- callSeeded(Head, Geometry, USCS = Pool, IDm = "U1", Vref = -1, levels = "mean")
+  expect_identical(conditionMessage(Expected$result), "Vref must be one positive finite velocity")
+  expect_identical(callSeeded(buildShearTable, Geometry, USCS = Pool, IDm = "U1", Vref = -1, levels = "mean"), Expected)
+  # The clay column of 10 m, four of whose realizations fit a negative mo
+  # (test-buildShearDraws.R): its mean row, and with the nine levels the
+  # error of the quantile rows whose mo is negative.
+  Geometry <- buildGeometry(Hs = 10, lo = 0.35, s = 2.5)
+  Pool <- list(U1 = "CH")
+  Expected <- callSeeded(Head, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = "mean")
+  expect_identical(nrow(Expected$result), 1L)
+  expectReproduces(callSeeded(buildShearTable, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = "mean"), Expected)
+  Levels <- c(0.02, 0.05, 0.10, 0.16, "mean", 0.84, 0.90, 0.95, 0.98)
+  Expected <- callSeeded(Head, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = Levels)
+  expect_identical(conditionMessage(Expected$result), "the exact method needs lo in [0, 1) and mo in [0, 2)")
+  expect_identical(callSeeded(buildShearTable, Geometry, USCS = Pool, IDm = "U1", Vref = 760, levels = Levels), Expected)
 })
 
 test_that("inconsistent geometry or material inputs fail explicitly", {

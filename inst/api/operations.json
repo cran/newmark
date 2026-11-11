@@ -459,6 +459,7 @@
      "result": "object: the weights of the active models, named by model", "json": true, "random": "none", "effects": [],
      "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
     {"name":"integrateDnHazard","function":"integrateDnHazard","family":"displacement","route":"general","arguments":[{"name":"curves","kind":"table","required":true,"columns":[{"name":"Tn","type":"double","null":false},{"name":"Sa","type":"double","null":false},{"name":"AEP","type":"double","null":false}]},{"name":"ky","kind":"number","required":true},{"name":"Ts","kind":"number","required":true},{"name":"VS30","kind":"number","required":true},{"name":"Vref","kind":"number","required":true},{"name":"Mw","kind":"number","required":true},{"name":"weights","kind":"named","required":true},{"name":"Da","kind":"number","required":true},{"name":"IT","kind":"number","required":true},{"name":"TR","kind":"number","required":true},{"name":"siteModel","kind":"text","required":true}],"result":"object: summary, models and conditional; AEP and Poisson POE on available support","json":true,"random":"none","effects":[],"interfaces":["R","CLI"],"acceptance":"install/acceptance.R"},
+    {"name":"integrateDnHazardProfiles","function":"integrateDnHazardProfiles","family":"displacement","route":"general","arguments":[{"name":"curves","kind":"table","required":true,"columns":[{"name":"Tn","type":"double","null":false},{"name":"Sa","type":"double","null":false},{"name":"AEP","type":"double","null":false}]},{"name":"profiles","kind":"table","required":true,"columns":[{"name":"Ts","type":"double","null":false},{"name":"VS30","type":"double","null":false},{"name":"w","type":"double","null":false}]},{"name":"ky","kind":"table","required":true,"columns":[{"name":"ky","type":"double","null":false},{"name":"w","type":"double","null":false}]},{"name":"Mw","kind":"number","required":true},{"name":"weights","kind":"named","required":true},{"name":"Da","kind":"number","required":true},{"name":"IT","kind":"number","required":true},{"name":"TR","kind":"number","required":true},{"name":"siteModel","kind":"text","required":true},{"name":"Vref","kind":"number","required":true}],"result":"object: summary and components; AEP and Poisson POE mixed over profiles (Ts, VS30) and ky, with the Monte Carlo error of the mixture","json":true,"random":"none","effects":[],"interfaces":["R","CLI"],"acceptance":"install/acceptance.R"},
     {"name": "buildDnTables", "function": "buildDnTables", "family": "displacement", "route": "compatibility",
      "arguments": [
        {"name": "rock", "kind": "table", "required": true, "columns": [
@@ -487,7 +488,11 @@
        {"name": "NS", "kind": "integer", "required": true},
        {"name": "weights", "kind": "named", "required": true},
        {"name": "zTrunc", "kind": "number", "required": true},
-       {"name": "workers", "kind": "integer", "required": true}],
+       {"name": "workers", "kind": "integer", "required": true},
+       {"name": "draws", "kind": "table", "required": true, "columns": [
+         {"name": "IDg", "type": "text", "null": false}, {"name": "IDm", "type": "text", "null": false},
+         {"name": "realization", "type": "integer", "null": false}, {"name": "Ts", "type": "double", "null": false},
+         {"name": "VS30", "type": "double", "null": false}, {"name": "Vref", "type": "double", "null": false}]}],
      "result": "object: DnDraws and DnTable, the keyed site products",
      "json": true, "random": "products", "effects": [], "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
     {"name": "assembleDnTables", "function": "assembleDnTables", "family": "displacement", "route": "compatibility",
@@ -530,12 +535,50 @@
        {"name": "levels", "kind": "number", "required": true}],
      "result": "table: Da (cm), level, kmax (g), beyond, n; one row per Da and level",
      "json": true, "random": "none", "effects": [], "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
+    {"name": "buildDnPOETable", "function": "buildDnPOETable", "family": "displacement", "route": "general",
+     "arguments": [
+       {"name": "draws", "kind": "table", "required": true, "columns": [
+         {"name": "siteID", "type": "text", "null": false}, {"name": "ID", "type": "text", "null": false},
+         {"name": "TR", "type": "double", "null": true}, {"name": "IDg", "type": "text", "null": false},
+         {"name": "IDm", "type": "text", "null": false}, {"name": "IDn", "type": "text", "null": false},
+         {"name": "ky", "type": "double", "null": false}, {"name": "realization", "type": "integer", "null": false},
+         {"name": "Dn", "type": "double", "null": false}, {"name": "units.Dn", "type": "text", "null": false}]},
+       {"name": "shear", "kind": "table", "required": true, "columns": [
+         {"name": "IDg", "type": "text", "null": false}, {"name": "IDm", "type": "text", "null": false},
+         {"name": "Hs", "type": "double", "null": false}, {"name": "level", "type": "text", "null": false}]},
+       {"name": "modelID", "kind": "text", "required": true},
+       {"name": "siteID", "kind": "text", "required": true},
+       {"name": "TR", "kind": "number", "required": true},
+       {"name": "NS", "kind": "integer", "required": true},
+       {"name": "weights", "kind": "named", "required": true},
+       {"name": "DaH", "kind": "number", "required": true}],
+     "result": "table: siteID, ID, TR, IDg, IDm, IDn (ensemble), ky, DaH, Da (cm), POE, n (integer), units.Da (cm); pointwise weighted fraction of stored draws strictly above DaH * Hs, conditional on demand and the positive lognormal branch represented by flexible-model draws; stored zeros count as non-exceedance; keyed by siteID, ID, TR, IDg, IDm, ky, DaH",
+     "json": true, "random": "none", "effects": [], "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
+    {"name": "assembleDnPOETables", "function": "assembleDnPOETables", "family": "displacement", "route": "general",
+     "arguments": [
+       {"name": "tables", "kind": "tables", "required": true, "columns": [
+         {"name": "siteID", "type": "text", "null": false}, {"name": "ID", "type": "text", "null": false},
+         {"name": "TR", "type": "double", "null": true}, {"name": "IDg", "type": "text", "null": false},
+         {"name": "IDm", "type": "text", "null": false}, {"name": "IDn", "type": "text", "null": false},
+         {"name": "ky", "type": "double", "null": false}, {"name": "DaH", "type": "double", "null": false},
+         {"name": "Da", "type": "double", "null": false}, {"name": "POE", "type": "double", "null": false},
+         {"name": "n", "type": "integer", "null": false}, {"name": "units.Da", "type": "text", "null": false}]},
+       {"name": "shear", "kind": "table", "required": true, "columns": [
+         {"name": "IDg", "type": "text", "null": false}, {"name": "IDm", "type": "text", "null": false},
+         {"name": "Hs", "type": "double", "null": false}, {"name": "level", "type": "text", "null": false}]},
+       {"name": "modelID", "kind": "text", "required": true},
+       {"name": "TR", "kind": "number", "required": true},
+       {"name": "weights", "kind": "named", "required": true},
+       {"name": "DaH", "kind": "number", "required": true}],
+     "result": "table: validated global DnPOETable with the columns and key of buildDnPOETable; values are assembled, not recomputed",
+     "json": true, "random": "none", "effects": [], "interfaces": ["R", "CLI"], "acceptance": "install/acceptance.R"},
+
     {"name": "buildKmaxTable", "function": "buildKmaxTable", "family": "kmax", "route": "compatibility",
      "arguments": [
        {"name": "draws", "kind": "table", "required": true, "columns": [
          {"name": "IDg", "type": "text", "null": false}, {"name": "IDm", "type": "text", "null": false},
          {"name": "ID", "type": "text", "null": false}, {"name": "TR", "type": "double", "null": true},
-         {"name": "ky", "type": "double", "null": false}, {"name": "s", "type": "integer", "null": false},
+         {"name": "ky", "type": "double", "null": false}, {"name": "realization", "type": "integer", "null": false},
          {"name": "PGA.s", "type": "double", "null": false}, {"name": "IDn", "type": "text", "null": false},
          {"name": "Dn", "type": "double", "null": false}, {"name": "siteID", "type": "text", "null": false},
          {"name": "units.Dn", "type": "text", "null": false}]},

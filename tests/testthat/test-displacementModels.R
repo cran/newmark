@@ -11,7 +11,7 @@ test_that("the six displacement models reproduce the 1.7.1 examples", {
   Flexible <- function(model, Sa, Mw, pulse, NFC = "D100") {
     parameters(evaluateFlexibleDisplacement(model, ky = 0.1, Ts = 0.3, Sa = Sa, Mw = Mw, PGV = 80, NFC = NFC, pulse = pulse))
   }
-  expect_identical(list(Rigid("AM88"), Rigid("JB07"), Rigid("SR08"), Flexible("BT07", 0.8, 7, FALSE),
+  expectReproduces(list(Rigid("AM88"), Rigid("JB07"), Rigid("SR08"), Flexible("BT07", 0.8, 7, FALSE),
                         Flexible("BM17", 0.8, 8, FALSE), Flexible("BM19", 0.8, 7, FALSE),
                         Flexible("BM19", 0.8, 7, TRUE), Flexible("BM19", 0.8, 7, TRUE, NFC = "D50")),
                    reference()$models)
@@ -22,7 +22,7 @@ test_that("the six displacement models reproduce the 1.7.1 examples", {
 test_that("the models switch their coefficients at the published thresholds", {
   # AM88 caps ky / PGA at 0.9999, so a block yielding at or above the peak
   # keeps the displacement of that ratio.
-  expect_identical(evaluateRigidDisplacement("AM88", PGA = 0.5, ky = c(0.5, 0.7), AI = c(1, 1))$muLnD,
+  expectReproduces(evaluateRigidDisplacement("AM88", PGA = 0.5, ky = c(0.5, 0.7), AI = c(1, 1))$muLnD,
                    rep(evaluateRigidDisplacement("AM88", PGA = 0.5, ky = 0.49995, AI = 1)$muLnD, 2L))
   # BT07: intercept -0.22 below Ts = 0.05 s and -1.10 from there on.
   BT07 <- function(Ts) evaluateFlexibleDisplacement("BT07", ky = 0.1, Ts = Ts, Sa = 0.8, Mw = 7, PGV = 80, NFC = "D100",
@@ -32,13 +32,26 @@ test_that("the models switch their coefficients at the published thresholds", {
   BM19 <- function(PGV) evaluateFlexibleDisplacement("BM19", ky = 0.1, Ts = 0.3, Sa = 0.8, Mw = 7, PGV = PGV,
                                                      NFC = "D100", pulse = TRUE)$muLnD
   expect_equal(BM19(150 + 1e-9) - BM19(150), (1.764 - -6.951) + (-0.097 - 1.547) * log(150), tolerance = 1e-6)
-  expect_identical(evaluateFlexibleDisplacement("BM19", ky = 0.1, Ts = 0.3, Sa = c(0.8, 0.8), Mw = 7, PGV = c(80, 400),
+  expect_equal(evaluateFlexibleDisplacement("BM19", ky = 0.1, Ts = 0.3, Sa = c(0.8, 0.8), Mw = 7, PGV = c(80, 400),
                                                 NFC = "D50", pulse = FALSE)$sigmaLnD, c(0.72, 0.72))
   expect_error(evaluateFlexibleDisplacement("BM19", ky = 0.1, Ts = 0.3, Sa = 0.8, Mw = 7, PGV = 80, NFC = "D84",
                                             pulse = FALSE), "NFC")
   expect_error(evaluateFlexibleDisplacement("BT07", ky = 0.1, Ts = c(0.3, 0.4), Sa = 0.8, Mw = 7, PGV = 80, NFC = "D100",
                                             pulse = FALSE), "one finite")
   expect_error(evaluateRigidDisplacement("BT07", PGA = 0.5, ky = 0.1, AI = 1), "model must be")
+})
+
+test_that("BM19 D50 follows the erratum across the period and PGV boundaries", {
+  # Equation 7 and its regimes in the 2021 erratum, independently evaluated:
+  # https://doi.org/10.1061/(ASCE)GT.1943-5606.0002476
+  expect_equal(evaluateFlexibleDisplacement("BM19", ky = 0.1, Ts = 0.05,
+                                            Sa = rep(0.8, 3L), Mw = 7, PGV = c(80, 150, 400),
+                                            NFC = "D50", pulse = TRUE)$muLnD,
+               c(3.946551847107838, 4.863063272545659, 5.056343627431017))
+  expect_equal(evaluateFlexibleDisplacement("BM19", ky = 0.1, Ts = 0.1,
+                                            Sa = rep(0.8, 3L), Mw = 7, PGV = c(80, 150, 400),
+                                            NFC = "D50", pulse = TRUE)$muLnD,
+               c(3.960401847107837, 4.876913272545659, 5.070193627431018))
 })
 
 test_that("the models expand vectors of length one and reject other unequal lengths", {
@@ -64,10 +77,10 @@ test_that("estimatePGV and estimateAI evaluate the in-house regressions", {
 test_that("selectDisplacementModels keeps the flexible model of the regime", {
   Switches <- c(AM88 = 1, JB07 = 1, BT07 = 1, SR08 = 1, BM17 = 1, BM19 = 1)
   expect_message(Crustal <- selectDisplacementModels(Switches, subduction = FALSE), "^Dn models: subduction = FALSE -> BM17 off, BM19 on", class = "moduleNote")
-  expect_identical(Crustal, c(AM88 = 1, JB07 = 1, BT07 = 1, SR08 = 1, BM19 = 1))
-  expect_identical(suppressMessages(selectDisplacementModels(Switches, subduction = TRUE)),
+  expect_equal(Crustal, c(AM88 = 1, JB07 = 1, BT07 = 1, SR08 = 1, BM19 = 1))
+  expect_equal(suppressMessages(selectDisplacementModels(Switches, subduction = TRUE)),
                    c(AM88 = 1, JB07 = 1, BT07 = 1, SR08 = 1, BM17 = 1))
-  expect_identical(selectDisplacementModels(c(AM88 = 1, BM17 = 0, BM19 = 0), subduction = TRUE), c(AM88 = 1))
+  expect_equal(selectDisplacementModels(c(AM88 = 1, BM17 = 0, BM19 = 0), subduction = TRUE), c(AM88 = 1))
   expect_error(selectDisplacementModels(c(AM88 = 0.5), subduction = TRUE), "0 or 1")
   expect_error(selectDisplacementModels(c(AM88 = 1, BM17 = 1), subduction = TRUE), "without BM19")
   expect_error(selectDisplacementModels(c(AM88 = 1, BM17 = 1, BM19 = 0), subduction = TRUE), "alike")
@@ -75,5 +88,6 @@ test_that("selectDisplacementModels keeps the flexible model of the regime", {
 })
 
 test_that("buildKyLimits tabulates the calibration ranges of 1.7.1", {
+  # Assigned calibration constants and the caller's PGA, not calculated results.
   expect_identical(as.list(buildKyLimits(PGA = 0.5)), stats::setNames(reference()$limits, c("IDn", "kyMin", "kyMax")))
 })

@@ -63,8 +63,9 @@ MCE[, `:=`(ID = "MCE", siteID = "TST", Vs30 = 760, Vref = 760)]
 Shear <- data.table::data.table(IDg = c("G1", "G2"), IDm = c("U1", "U2"), Hs = c(10, 120),
                                 VS30 = c(360, 560), Ts = 0.3, Vref = 760, level = "mean")
 Weights <- c(AM88 = 1, BM19 = 1)
+Draws <- Shear[, .(IDg, IDm, realization = 1L, Ts, VS30, Vref)]
 Site <- buildDnTables(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100, Vref = 760,
-                      Mw = 7, NS = 2, weights = Weights, zTrunc = 3, workers = 1)
+                      Mw = 7, NS = 2, weights = Weights, zTrunc = 3, workers = 1, draws = Draws)
 PGATable <- buildPGATable(Rock, MCE, Shear, modelID = "TEST", siteID = "TST", TR = 100)
 Kmax <- buildKmaxTable(Site$DnDraws, PGATable = PGATable, shear = Shear, modelID = "TEST",
                        siteID = "TST", TR = 100, NS = 2, weights = Weights, DaH = c(0.05, 0.1))

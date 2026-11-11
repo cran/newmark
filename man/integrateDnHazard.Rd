@@ -35,7 +35,7 @@ decreasing in \code{Sa} with at least two distinct rates.}
 \item{Mw}{Fixed moment magnitude, one finite positive value.}
 
 \item{weights}{Positive named dimensionless weights of AM88, JB07, SR08,
-BT07 or BM17.}
+BT07, BM17 or BM19.}
 
 \item{Da}{Displacement threshold in cm, one finite positive value.}
 
@@ -77,13 +77,15 @@ Probabilities are dimensionless.
 \description{
 Integrates the existing displacement regressions and ST20/ST17 site
 uncertainty over annual rock exceedance rates, at a fixed yield coefficient.
-Rigid models use the PGA curve. Flexible models use Sa at 1.5 Ts and,
+Rigid models use the PGA curve. Flexible models use Sa at the degraded
+period of the model, 1.5 Ts for BT07 and BM17 and 1.3 Ts for BM19, and,
 for the site factor only, the PGA at the same return period. This last
 pairing is an equal-hazard approximation, not an event joint distribution.
 }
 \details{
-For BT07 and BM17 (\code{\link[=evaluateFlexibleDisplacement]{evaluateFlexibleDisplacement()}}), the integrand uses
-the lognormal distribution conditional on nonzero displacement; it is not
+For BT07, BM17 and BM19 (\code{\link[=evaluateFlexibleDisplacement]{evaluateFlexibleDisplacement()}}; BM19 with its
+ordinary-motion equation, as the DnTable products take it), the integrand
+uses the lognormal distribution conditional on nonzero displacement; it is not
 multiplied by the probability of nonzero displacement, so these rates do
 not represent the unconditional exceedance hazard of the published mixed
 models. For JB07 and SR08 (\code{\link[=evaluateRigidDisplacement]{evaluateRigidDisplacement()}}), the Arias

@@ -18,7 +18,7 @@ test_that("estimateRayleighPeriod gives 3.974 H/Vs for a uniform column and igno
   Ts <- estimateRayleighPeriod(VSm = rep(200, 20), hs = rep(1, 20), zm = seq(0.5, 19.5, by = 1))
   expect_equal(Ts, 3.974 * 20 / 200, tolerance = 1e-3)
   IDX <- c(3, 1, 2)
-  expect_identical(estimateRayleighPeriod(VSm = c(220, 280, 340)[IDX], hs = c(10, 10, 10)[IDX], zm = c(5, 15, 25)[IDX]),
+  expectReproduces(estimateRayleighPeriod(VSm = c(220, 280, 340)[IDX], hs = c(10, 10, 10)[IDX], zm = c(5, 15, 25)[IDX]),
                    estimateRayleighPeriod(VSm = c(220, 280, 340), hs = c(10, 10, 10), zm = c(5, 15, 25)))
 })
 
@@ -43,8 +43,8 @@ test_that("the Rayleigh periods reproduce Dobry's Table 4 profile and reduce to 
   Tw <- estimateWeightedRayleighPeriod(VSm = V, hs = H, zm = Depth, gsat = Gamma)
   expect_true(is.finite(Tw) && Tw > 0)
   IDX <- c(12:7, 1:6)
-  expect_identical(estimateWeightedRayleighPeriod(V[IDX], H[IDX], Depth[IDX], Gamma[IDX]), Tw)
-  expect_identical(estimateWeightedRayleighPeriod(V, H, Depth, Gamma * 2), Tw)
+  expectReproduces(estimateWeightedRayleighPeriod(V[IDX], H[IDX], Depth[IDX], Gamma[IDX]), Tw)
+  expectReproduces(estimateWeightedRayleighPeriod(V, H, Depth, Gamma * 2), Tw)
   expect_error(estimateWeightedRayleighPeriod(V, H, Depth, Gamma[-1L]), "equal length")
 })
 
@@ -93,7 +93,7 @@ test_that("m1 follows Table 1 of Hardin and Drnevich by default and the 1.7.1 no
   expect_equal(evaluateSoilLayers(Layers, Hs = 10, water = 0, POP = 100, m1 = Legacy)$Gm[2], modulus(0.48))
   Layers$IP[2] <- 120
   expect_equal(evaluateSoilLayers(Layers, Hs = 10, water = 0, POP = 100)$Gm[2], modulus(0.50))
-  expect_identical(evaluateSoilLayers(Layers, Hs = 10, water = 0, POP = 100, m1 = Legacy)$Gm[2], NA_real_)
+  expect_true(is.na(evaluateSoilLayers(Layers, Hs = 10, water = 0, POP = 100, m1 = Legacy)$Gm[2]))
   expect_error(evaluateSoilLayers(Layers, Hs = 10, water = 0, POP = 100, m1 = Legacy[, "IP", drop = FALSE]),
                "numeric IP and m1 nodes")
 })

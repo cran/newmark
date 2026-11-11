@@ -15,6 +15,7 @@ test_that("targets above the ceiling of a realization saturate at kmax zero", {
   Roots <- solveKmax(ky = ky, Dn = matrix(0.02 / ky, nrow = 4L, ncol = 4L, byrow = TRUE), PGA = NULL,
                      model = "BT07", Da = c(0.1, 1))
   expect_equal(Roots[Da == 0.1, kmax], rep(0.2, 4L))
+  # Exact by contract: kmax is assigned 0 above the ceiling (solveKmax.R), not computed.
   expect_true(all(Roots[Da == 1, kmax] == 0))
   expect_identical(Roots$realization, rep(1:4, each = 2L))
   expect_false(any(Roots$beyond))

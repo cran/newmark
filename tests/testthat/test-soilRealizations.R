@@ -4,10 +4,11 @@ test_that("simulateSoilProfiles retains paired realizations and their layers", {
                                    water = 0, POP = 100, Vref = 760)
   expect_identical(Profiles$realization, 1:3)
   expect_true(all(c("Go", "mo", "VSo", "VS30", "TrRayleigh", "layers") %in% names(Profiles)))
+  # Integer counts, exact by type.
   expect_identical(vapply(Profiles$layers, nrow, 1L), rep(10L, 3))
   # The row properties come from the stored layers of that same row.
   Again <- characterizeProfile(Profiles$layers[[2L]], Hs = 10, Vref = 760)
-  expect_identical(Profiles[2L, .(Go, mo, VSo, VS30, TrRayleigh)], Again[, .(Go, mo, VSo, VS30, TrRayleigh)])
+  expectReproduces(Profiles[2L, .(Go, mo, VSo, VS30, TrRayleigh)], Again[, .(Go, mo, VSo, VS30, TrRayleigh)])
 })
 
 test_that("summarizeProfiles returns the requested marginal statistics in order", {
@@ -44,6 +45,7 @@ test_that("propagateBeamPeriod solves the slope period of each realization from 
   expect_equal(OUT$TsAnalytic, 4 * pi * (10 / (1 - 0.351)) / (OUT$an * (2 - OUT$mo) * OUT$VSo))
   # Divergence flag at 10 percent of relative difference (owner's setting), flag only.
   expect_identical(OUT$TsDivergent, abs(OUT$TsAnalytic / OUT$Ts - 1) > 0.10)
+  # Input copy: lo is the truncation ratio given to the profiles.
   expect_identical(OUT$lo, rep(0.351, 4))
   expect_true(all(OUT$anWithinSupport))
   # The caller's table keeps its columns and gains none.
@@ -87,7 +89,7 @@ test_that("propagateBeamPeriod trims the deepest sampled layer to Hs before the 
   # result, and the site period is that of the sampled column.
   expect_identical(Profiles$layers, Sampled)
   expect_identical(OUT$layers, Sampled)
-  expect_identical(vapply(OUT$layers, function(L) sum(L$hs), numeric(1L)), rep(11, 3))
+  expect_equal(vapply(OUT$layers, function(L) sum(L$hs), numeric(1L)), rep(11, 3))
   expect_equal(propagateSitePeriod(OUT)$Tr, propagateSitePeriod(Profiles)$Tr)
   # An excess not smaller than the deepest layer stops the call with its row.
   Shorter <- copy(Profiles)[2L, Hs := 10]

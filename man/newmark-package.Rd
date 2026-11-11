@@ -20,7 +20,8 @@ Soil profiles and their periods: \code{\link[=buildGeometry]{buildGeometry()}}, 
 \code{\link[=estimateWeightedRayleighPeriod]{estimateWeightedRayleighPeriod()}}, \code{\link[=buildRootModel]{buildRootModel()}}, \code{\link[=evaluateRoot]{evaluateRoot()}},
 \code{\link[=evaluateBeamPeriod]{evaluateBeamPeriod()}}, \code{\link[=solveColumnPeriod]{solveColumnPeriod()}}, \code{\link[=solveWedgePeriod]{solveWedgePeriod()}},
 \code{\link[=solveProfilePeriods]{solveProfilePeriods()}}, \code{\link[=simulateSoilProfiles]{simulateSoilProfiles()}}, \code{\link[=propagateBeamPeriod]{propagateBeamPeriod()}},
-\code{\link[=propagateSitePeriod]{propagateSitePeriod()}}, \code{\link[=summarizeProfiles]{summarizeProfiles()}}, \code{\link[=buildShearTable]{buildShearTable()}}.
+\code{\link[=propagateSitePeriod]{propagateSitePeriod()}}, \code{\link[=summarizeProfiles]{summarizeProfiles()}}, \code{\link[=buildShearTable]{buildShearTable()}},
+\code{\link[=buildShearDraws]{buildShearDraws()}}.
 
 Hazard inputs: \code{\link[=readHazardWorkbook]{readHazardWorkbook()}}, \code{\link[=convertAEP]{convertAEP()}},
 \code{\link[=evaluateUniformHazard]{evaluateUniformHazard()}}.
@@ -36,7 +37,8 @@ Earthquake-induced displacement: \code{\link[=correlateResiduals]{correlateResid
 \code{\link[=selectDisplacementModels]{selectDisplacementModels()}}, \code{\link[=buildKyGrid]{buildKyGrid()}}, \code{\link[=buildKyLimits]{buildKyLimits()}},
 \code{\link[=evaluateRigidDisplacement]{evaluateRigidDisplacement()}}, \code{\link[=evaluateFlexibleDisplacement]{evaluateFlexibleDisplacement()}},
 \code{\link[=evaluateDisplacements]{evaluateDisplacements()}}, \code{\link[=summarizeDisplacements]{summarizeDisplacements()}}, \code{\link[=summarizeEnsemble]{summarizeEnsemble()}},
-\code{\link[=integrateDnHazard]{integrateDnHazard()}}, \code{\link[=buildDnTables]{buildDnTables()}}, \code{\link[=assembleDnTables]{assembleDnTables()}}.
+\code{\link[=integrateDnHazard]{integrateDnHazard()}}, \code{\link[=integrateDnHazardProfiles]{integrateDnHazardProfiles()}}, \code{\link[=buildDnTables]{buildDnTables()}},
+\code{\link[=assembleDnTables]{assembleDnTables()}}, \code{\link[=buildDnPOETable]{buildDnPOETable()}}, \code{\link[=assembleDnPOETables]{assembleDnPOETables()}}.
 
 Pseudostatic coefficient: \code{\link[=solveKmax]{solveKmax()}}, \code{\link[=summarizeKmax]{summarizeKmax()}},
 \code{\link[=buildKmaxTable]{buildKmaxTable()}}, \code{\link[=assembleKmaxTables]{assembleKmaxTables()}}.

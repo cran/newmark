@@ -31,9 +31,9 @@ its step wrote it to report its rows, columns and key. It writes nothing.
 }
 \details{
 The tables are the files at the destinations of \code{\link[=processProject]{processProject()}}:
-\code{ShearTable.Rds}, \code{DnPlotTable.Rds}, \code{DnTable.Rds} and \code{kmaxTable.Rds} at
+\code{ShearTable.Rds}, \code{ShearDraws.Rds}, \code{DnPlotTable.Rds}, \code{DnTable.Rds}, \code{kmaxTable.Rds} and \code{DnPOETable.Rds} at
 the root of \code{path.tables}, and \code{DnDraws.Rds}, \code{PGATable.csv},
-\code{DnTable.Rds} and \code{kmaxTable.Rds} under \verb{<ID.gmdp>/<siteID>/} for every
+\code{DnTable.Rds}, \code{kmaxTable.Rds} and \code{DnPOETable.Rds} under \verb{<ID.gmdp>/<siteID>/} for every
 directory there whose name is a site identifier (a letter followed by
 letters, digits, \verb{_} or \code{-}). A destination without its file is not
 listed, and neither is any other file. A contract without \code{ID.gmdp}, as

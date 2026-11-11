@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' List the tables of a project
 #'
 #' Reads the project contract and lists the table files of
@@ -5,9 +9,9 @@
 #' its step wrote it to report its rows, columns and key. It writes nothing.
 #'
 #' The tables are the files at the destinations of [processProject()]:
-#' `ShearTable.Rds`, `DnPlotTable.Rds`, `DnTable.Rds` and `kmaxTable.Rds` at
+#' `ShearTable.Rds`, `ShearDraws.Rds`, `DnPlotTable.Rds`, `DnTable.Rds`, `kmaxTable.Rds` and `DnPOETable.Rds` at
 #' the root of `path.tables`, and `DnDraws.Rds`, `PGATable.csv`,
-#' `DnTable.Rds` and `kmaxTable.Rds` under `<ID.gmdp>/<siteID>/` for every
+#' `DnTable.Rds`, `kmaxTable.Rds` and `DnPOETable.Rds` under `<ID.gmdp>/<siteID>/` for every
 #' directory there whose name is a site identifier (a letter followed by
 #' letters, digits, `_` or `-`). A destination without its file is not
 #' listed, and neither is any other file. A contract without `ID.gmdp`, as

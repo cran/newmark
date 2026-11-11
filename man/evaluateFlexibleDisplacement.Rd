@@ -53,7 +53,8 @@ a probability of negligible ("zero") displacement, with a threshold of
 distribution of the nonzero displacement. This function evaluates only
 the nonzero branch, equation 14.5 of Bray (2007, p. 344), equation 4 of
 Bray, Macedo and Travasarou (2018, p. 5) and equations 6, 8 and 10 of
-Bray and Macedo (2023, pp. 6-7), and omits the probability of zero
+Bray and Macedo (2023, pp. 6-7), with the D50 correction described below,
+and omits the probability of zero
 displacement of equation 14.4 (p. 343), equations 2 and 3 (p. 5) and
 equations 5, 7 and 9 (pp. 6-7) of the same sources. Its result is the
 distribution of \eqn{D_n} conditional on the inputs and on a nonzero
@@ -80,8 +81,9 @@ interface earthquakes, with
 \eqn{(-6.896, 3.081, -0.803)} otherwise:
 \deqn{\ln D_n = c_1 + 0.550 M_w + c_2 T_s + c_3 T_s^2 - 3.353 x - 0.390 x^2 + (3.060 + 0.538 x) y - 0.225 y^2, \qquad \sigma = 0.73}
 
-\code{BM19}, Bray and Macedo (2019) as corrected in 2023, shallow crustal
-earthquakes. Ordinary motions (\code{pulse = FALSE}, equation 10):
+\code{BM19}, Bray and Macedo (2019), using the 2023 equations with the D50
+intercept from the 2021 erratum, for shallow crustal earthquakes.
+Ordinary motions (\code{pulse = FALSE}, equation 10 of the 2023 paper):
 \deqn{\ln D_n = a_0 + (2.649 + 0.344 x) y - 0.090 y^2, \qquad \sigma = 0.72}
 with \eqn{a_0 = -4.684 + 0.603 M_w - 9.471 T_s - 2.482 x - 0.244 x^2}
 for \eqn{T_s < 0.1} s and
@@ -97,11 +99,12 @@ component (\code{"D50"}: \eqn{b = (2.931, 0.319, 0.584, 2.261, 0.241)},
 PGV = 150 cm/s, \eqn{c_1, c_2, c_3} at \eqn{T_s = 0.1} s: D100
 \eqn{c_1 = -6.724 / 1.991} and \eqn{(c_2, c_3) = (-2.744, 0)} below
 0.1 s, \eqn{c_1 = -6.951 / 1.764} and \eqn{(1.069, -0.498)} above,
-\eqn{c_4 = 1.547 / -0.097}; D50 \eqn{c_1 = -7.497 / 2.480} and
+\eqn{c_4 = 1.547 / -0.097}; D50 \eqn{c_1 = -7.497 / -0.148} and
 \eqn{(-2.731, 0)}, \eqn{c_1 = -7.718 / -0.369} and \eqn{(1.031, -0.480)},
 \eqn{c_4 = 1.458 / 0.025} (PGV up to / above 150 cm/s). For D50 above
-150 cm/s and \eqn{T_s < 0.1} s the paper's \eqn{c_1 = 2.480} differs from
-the authors' spreadsheet (-0.148); the paper is followed.
+150 cm/s and \eqn{T_s < 0.1} s, \eqn{c_1 = -0.148} follows the 2021
+erratum to equation 7 of the 2019 paper. Equation 8 of the 2023 paper
+instead prints \eqn{c_1 = 2.480}; that value is not used here.
 }
 
 \examples{
@@ -129,8 +132,14 @@ shear-induced seismic slope displacement for shallow crustal
 earthquakes. \emph{Journal of Geotechnical and Geoenvironmental
 Engineering}, 145(12), 04019106.
 
+Bray, J. D. and Macedo, J. (2021). Erratum for "Procedure for
+estimating shear-induced seismic slope displacement for shallow
+crustal earthquakes". \emph{Journal of Geotechnical and Geoenvironmental
+Engineering}, 147(2). \doi{10.1061/(ASCE)GT.1943-5606.0002476}
+
 Bray, J. D. and Macedo, J. (2023). Performance-based seismic assessment
 of slope systems. \emph{Soil Dynamics and Earthquake Engineering}, 168,
 107835. \doi{10.1016/j.soildyn.2023.107835} The \code{BM19} coefficients
-implemented here are those printed in its equations 6, 8 and 10.
+implemented here follow its equations 6, 8 and 10, except for the
+D50 intercept described above.
 }

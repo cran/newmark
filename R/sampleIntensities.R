@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Paired intensity measures of a displacement scenario
 #'
 #' Draws `NS` joint realizations of the intensity measures that the six
@@ -37,6 +41,12 @@
 #' set.seed(46)
 #' sampleIntensities(Spectrum, Ts = 0.4, NS = 5, zTrunc = NA)
 sampleIntensities <- function(spectrum, Ts, NS, zTrunc) {
+  Draw <- .sampleIntensities(spectrum, Ts = Ts, NS = NS, zTrunc = zTrunc, generator = stats::rnorm)
+  .intensityTable(.centerSpectra(Draw$sample, mean = Draw$mean))
+}
+
+# The same paired marginals before any finite-sample centering.
+.sampleIntensities <- function(spectrum, Ts, NS, zTrunc, generator) {
   if (!is.data.frame(spectrum)) stop("spectrum must be a table")
   if (!is.numeric(Ts) || length(Ts) != 1L || !is.finite(Ts) || Ts <= 0) {
     stop("Ts must be one finite positive period")
@@ -52,7 +62,11 @@ sampleIntensities <- function(spectrum, Ts, NS, zTrunc) {
   }
   C <- outer(Periods, Periods, function(a, b) correlateResiduals(Tn = a, T0 = b))
   diag(C) <- 1
-  OUT <- .drawSpectra(DT, Tn = Periods, correlation = C, NS = NS, zTrunc = zTrunc)
-  data.table(realization = seq_len(nrow(OUT)), PGA = OUT[, 1L], Sa13 = OUT[, 2L], Sa15 = OUT[, 3L],
-             PGV = estimatePGV(OUT[, 1L]), AI = estimateAI(OUT[, 1L]))
+  .sampleSpectra(DT, Tn = Periods, correlation = C, NS = NS, zTrunc = zTrunc, generator = generator)
+}
+
+# Derived measures are evaluated only after the PGA sample is centered.
+.intensityTable <- function(sample) {
+  data.table(realization = seq_len(nrow(sample)), PGA = sample[, 1L], Sa13 = sample[, 2L], Sa15 = sample[, 3L],
+             PGV = estimatePGV(sample[, 1L]), AI = estimateAI(sample[, 1L]))
 }

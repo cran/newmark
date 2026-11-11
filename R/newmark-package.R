@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alejandro Verri Kozlowski <averri@fi.uba.ar>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Part of newmark: free software under the GNU Affero General Public License, version 3 or later, see <https://www.gnu.org/licenses/>.
+# Text and data mining reserved for any use not licensed under the AGPL-3: see <https://kanameishi.github.io/tdm-policy.html>.
 #' Uncertainty analysis in dynamic site and slope response
 #'
 #' Estimates the seismic response of sites and slopes from the results of a
@@ -13,7 +17,8 @@
 #' [estimateWeightedRayleighPeriod()], [buildRootModel()], [evaluateRoot()],
 #' [evaluateBeamPeriod()], [solveColumnPeriod()], [solveWedgePeriod()],
 #' [solveProfilePeriods()], [simulateSoilProfiles()], [propagateBeamPeriod()],
-#' [propagateSitePeriod()], [summarizeProfiles()], [buildShearTable()].
+#' [propagateSitePeriod()], [summarizeProfiles()], [buildShearTable()],
+#' [buildShearDraws()].
 #'
 #' Hazard inputs: [readHazardWorkbook()], [convertAEP()],
 #' [evaluateUniformHazard()].
@@ -29,7 +34,8 @@
 #' [selectDisplacementModels()], [buildKyGrid()], [buildKyLimits()],
 #' [evaluateRigidDisplacement()], [evaluateFlexibleDisplacement()],
 #' [evaluateDisplacements()], [summarizeDisplacements()], [summarizeEnsemble()],
-#' [integrateDnHazard()], [buildDnTables()], [assembleDnTables()].
+#' [integrateDnHazard()], [integrateDnHazardProfiles()], [buildDnTables()],
+#' [assembleDnTables()], [buildDnPOETable()], [assembleDnPOETables()].
 #'
 #' Pseudostatic coefficient: [solveKmax()], [summarizeKmax()],
 #' [buildKmaxTable()], [assembleKmaxTables()].
@@ -50,7 +56,8 @@ utils::globalVariables(c(
   "USCS", "GroupID", "an", "l", "m", "n", "Gm", "VSm", "zm", "Go", "mo", "Ts",
   "VSo", "VS30", "Z500", "Z1000", "level", "IDg", "IDm", "Hs", "b", "s", "lo",
   "X", "Y", "Z", ".", "Dr", "TrRayleigh", "emax", "emin", "eo", "group", "gsat",
-  "ModelID", "Ce", "A", "Fe", "G", "layer", "OCR", "pm", "m1", "i.query", "x.an"
+  "ModelID", "Ce", "A", "Fe", "G", "layer", "OCR", "pm", "m1", "i.query", "x.an", "POP", "Hw", "realization",
+  "spectrum"
 ))
 
 # Lazy-loaded datasets of this package, resolved whether the package is
